@@ -1,4 +1,4 @@
-"""ClickHouse repository: rollups, daily model input, and auditable baselines."""
+"""ClickHouse repository: hourly rollups and auditable out-of-sample baselines."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from typing import Iterable
 import clickhouse_connect
 import pandas as pd
 
-from config import BASELINES_TABLE, CLICKHOUSE, METRICS, METRICS_DAILY_TABLE, ROLLUP_DIMENSIONS
+from config import CLICKHOUSE, HOURLY_BASELINES_TABLE, METRICS, METRICS_HOURLY_TABLE, ROLLUP_DIMENSIONS
 
 LOGGER = logging.getLogger(__name__)
 
@@ -46,34 +46,44 @@ class ClickHouseClient:
 
     def ensure_tables(self) -> None:
         self.client.command(f"""
-            CREATE TABLE IF NOT EXISTS {METRICS_DAILY_TABLE} (
-                day Date, dim_name LowCardinality(String), dim_value LowCardinality(String),
+            CREATE TABLE IF NOT EXISTS {METRICS_HOURLY_TABLE} (
+                bucket DateTime('UTC'), dim_name LowCardinality(String), dim_value LowCardinality(String),
                 requests UInt64, fills UInt64, impressions UInt64, clicks UInt64, revenue Float64
-            ) ENGINE = SummingMergeTree ORDER BY (dim_name, dim_value, day)
+            ) ENGINE = SummingMergeTree PARTITION BY toYYYYMM(bucket) ORDER BY (dim_name, dim_value, bucket)
+        """)
+        self.client.command("""
+            CREATE TABLE IF NOT EXISTS revenue_attribution_hourly (
+                bucket DateTime('UTC'), dim_name LowCardinality(String), dim_value LowCardinality(String),
+                actual Float64, expected Float64, residual Float64, global_residual Float64,
+                contribution_share Float64, contributor_rank UInt16, is_contributor UInt8,
+                model_run_id UUID, fitted_at DateTime
+            ) ENGINE = MergeTree PARTITION BY toYYYYMM(bucket)
+            ORDER BY (bucket, dim_name, contributor_rank, dim_value, model_run_id)
         """)
         self.client.command(f"""
-            CREATE TABLE IF NOT EXISTS {BASELINES_TABLE} (
-                day Date, dim_name LowCardinality(String), dim_value LowCardinality(String),
+            CREATE TABLE IF NOT EXISTS {HOURLY_BASELINES_TABLE} (
+                bucket DateTime('UTC'), dim_name LowCardinality(String), dim_value LowCardinality(String),
                 metric LowCardinality(String), y Float64, yhat Float64, yhat_lower Float64,
                 yhat_upper Float64, residual Float64, z Float64, is_anomaly UInt8,
                 model_run_id UUID, fitted_at DateTime
-            ) ENGINE = MergeTree ORDER BY (metric, dim_name, dim_value, day, model_run_id)
+            ) ENGINE = MergeTree PARTITION BY toYYYYMM(bucket)
+            ORDER BY (metric, dim_name, dim_value, bucket, model_run_id)
         """)
 
-    def materialize_daily_rollup(self, day: date) -> bool:
-        """Insert one finalized UTC day once; protects SummingMergeTree from duplicates."""
+    def materialize_hourly_rollup(self, day: date) -> bool:
+        """Insert all UTC hourly aggregates for one finalized day exactly once."""
         self.ensure_tables()
         existing = self.client.query_df(
-            f"SELECT count() AS rows FROM {METRICS_DAILY_TABLE} WHERE day = {{day:Date}}",
+            f"SELECT count() AS rows FROM {METRICS_HOURLY_TABLE} WHERE toDate(bucket) = {{day:Date}}",
             parameters={"day": day},
         )
         if int(existing.iloc[0]["rows"]) > 0:
-            LOGGER.warning("Rollup for %s already exists; skipped to prevent double-counting.", day)
+            LOGGER.warning("Hourly rollup for %s already exists; skipped to prevent double-counting.", day)
             return False
         dimensions = ", ".join(f"('{name}', {value})" for name, value in ROLLUP_DIMENSIONS.items())
         self.client.command(f"""
-            INSERT INTO {METRICS_DAILY_TABLE}
-            SELECT toDate(e.event_time) AS day, d.1 AS dim_name, d.2 AS dim_value,
+            INSERT INTO {METRICS_HOURLY_TABLE}
+            SELECT toStartOfHour(e.event_time) AS bucket, d.1 AS dim_name, d.2 AS dim_value,
                    count() AS requests, sum(e.is_filled) AS fills,
                    sum(e.is_impression) AS impressions, sum(e.is_click) AS clicks,
                    sum(e.revenue) AS revenue
@@ -83,9 +93,9 @@ class ClickHouseClient:
             LEFT JOIN advertisers AS ad ON e.advertiser_id = ad.advertiser_id
             ARRAY JOIN [{dimensions}] AS d
             WHERE toDate(e.event_time) = {{day:Date}}
-            GROUP BY day, dim_name, dim_value
+            GROUP BY bucket, dim_name, dim_value
         """, parameters={"day": day})
-        LOGGER.info("Materialized daily rollup for %s", day)
+        LOGGER.info("Materialized hourly rollup for %s", day)
         return True
 
     def latest_event_day(self) -> date:
@@ -95,7 +105,7 @@ class ClickHouseClient:
             raise ValueError("ad_events is empty; cannot schedule a detection run.")
         return pd.Timestamp(latest).date()
 
-    def get_daily_series(self, metric: str, dimensions: Iterable[str], start: date, end: date) -> pd.DataFrame:
+    def get_hourly_series(self, metric: str, dimensions: Iterable[str], start: date, end: date) -> pd.DataFrame:
         if metric not in METRICS:
             raise ValueError(f"Unsupported metric '{metric}'.")
         dimensions = tuple(dimensions)
@@ -103,19 +113,29 @@ class ClickHouseClient:
         if invalid:
             raise ValueError(f"Unsupported dimensions: {', '.join(sorted(invalid))}")
         query = f"""
-            SELECT m.day AS ds, m.dim_name, m.dim_value, {METRICS[metric].expression} AS y,
-                   sum(m.requests) AS requests, sum(m.revenue) AS revenue
-            FROM {METRICS_DAILY_TABLE} AS m
-            WHERE m.day >= {{start:Date}} AND m.day < {{end:Date}} AND m.dim_name IN {{dimensions:Array(String)}}
-            GROUP BY ds, m.dim_name, m.dim_value ORDER BY m.dim_name, m.dim_value, ds
+            SELECT m.bucket AS ds, m.dim_name, m.dim_value, {METRICS[metric].expression} AS y,
+                   sum(m.requests) AS requests, sum(m.fills) AS fills,
+                   sum(m.impressions) AS impressions, sum(m.revenue) AS revenue
+            FROM {METRICS_HOURLY_TABLE} AS m
+            WHERE m.bucket >= {{start:Date}} AND m.bucket < {{end:Date}}
+              AND m.dim_name IN {{dimensions:Array(String)}}
+            GROUP BY ds, m.dim_name, m.dim_value
+            ORDER BY m.dim_name, m.dim_value, ds
         """
         result = self.client.query_df(query, parameters={"start": start, "end": end, "dimensions": list(dimensions)})
         result["ds"] = pd.to_datetime(result["ds"])
         return result
 
-    def save_baselines(self, baselines: pd.DataFrame) -> int:
+    def save_hourly_baselines(self, baselines: pd.DataFrame) -> int:
         if baselines.empty:
             return 0
         self.ensure_tables()
-        self.client.insert_df(BASELINES_TABLE, baselines)
+        self.client.insert_df(HOURLY_BASELINES_TABLE, baselines)
         return len(baselines)
+
+    def save_revenue_attribution(self, attribution: pd.DataFrame) -> int:
+        if attribution.empty:
+            return 0
+        self.ensure_tables()
+        self.client.insert_df("revenue_attribution_hourly", attribution)
+        return len(attribution)

@@ -37,11 +37,7 @@ CLICKHOUSE = {
     "database": os.getenv("CLICKHOUSE_DATABASE", "hackathon"), "username": os.getenv("CLICKHOUSE_USER"),
     "password": os.getenv("CLICKHOUSE_PASSWORD"), "secure": os.getenv("CLICKHOUSE_SECURE", "true").lower() == "true",
 }
-PROPHET = {"yearly_seasonality": False, "daily_seasonality": False, "weekly_seasonality": True,
-           "seasonality_mode": "multiplicative", "changepoint_prior_scale": 0.01,
-           "interval_width": float(os.getenv("PROPHET_INTERVAL_WIDTH", "0.99"))}
-MIN_HISTORY_DAYS = int(os.getenv("MIN_HISTORY_DAYS", "28"))
-METRICS_DAILY_TABLE = os.getenv("METRICS_DAILY_TABLE", "metrics_daily")
-BASELINES_TABLE = os.getenv("BASELINES_TABLE", "metric_baselines")
+METRICS_HOURLY_TABLE = os.getenv("METRICS_HOURLY_TABLE", "metrics_hourly")
+HOURLY_BASELINES_TABLE = os.getenv("HOURLY_BASELINES_TABLE", "metric_baselines_hourly")
 SUPPORTED_METRICS = tuple(METRICS)
 SUPPORTED_DIMENSIONS = tuple(ROLLUP_DIMENSIONS)
