@@ -12,12 +12,16 @@ Run:
   uv run uvicorn agents.api:app --host 0.0.0.0 --port 9100
 """
 
+from typing import Any
+
 from fastapi import FastAPI, HTTPException
 from pydantic import ValidationError
 
+from agents import narrator_outputs
+from agents.narrator import _derive_alert_id, run_narrator
 from agents.outputs import deliver, rca_exists
 from agents.pipeline import run_rca
-from agents.schemas import RCA, Alert
+from agents.schemas import RCA, Alert, NarratorRCA
 
 app = FastAPI(title="RCA Agentic Workflow", version="0.1.0")
 
@@ -42,6 +46,41 @@ def alert(payload: Alert, force: bool = False) -> RCA:
         )
     rca = run_rca(payload)
     deliver(rca)
+    return rca
+
+
+@app.post("/narrate", response_model=NarratorRCA)
+def narrate_alert(payload: dict[str, Any], force: bool = False) -> NarratorRCA:
+    """The Narrator door — accepts Part 2's diagnose() evidence dict
+    verbatim (no reshaping needed on their side), runs one LLM call over
+    it (no tools, no drill-down — that's already done), and persists the
+    result to narrator_results + index.md. This is the second webhook the
+    adapter fires per incident, alongside /alert; both rows share the same
+    alert_id (derived the same way the adapter's own build_alert() does)
+    so they're directly comparable for the same incident.
+
+    400 if the evidence has no flagged_factor (nothing to summarize —
+    mirrors the adapter's own build_alert() early-return). `?force=true`
+    re-runs even if this alert_id already has a narrator_results row."""
+    if payload.get("flagged_factor") is None:
+        raise HTTPException(
+            status_code=400,
+            detail="evidence.flagged_factor is None — nothing to summarize",
+        )
+    try:
+        alert_id = payload.get("alert_id") or _derive_alert_id(payload)
+    except (KeyError, TypeError) as e:
+        raise HTTPException(
+            status_code=422, detail=f"malformed evidence payload: {e}",
+        ) from e
+    if not force and narrator_outputs.rca_exists(alert_id):
+        raise HTTPException(
+            status_code=409,
+            detail=f"alert_id {alert_id!r} already has a narrator RCA — "
+                    "pass ?force=true to re-run",
+        )
+    rca = run_narrator(payload, alert_id=alert_id)
+    narrator_outputs.deliver(rca)
     return rca
 
 

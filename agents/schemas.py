@@ -80,3 +80,57 @@ class RCA(BaseModel):
     trace_url: str = ""
     status: Literal["ok", "failed", "low_confidence"] = "ok"
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+# ---------------------------------------------------------------------------
+# Narrator pipeline — a second, separate RCA path (agents/narrator.py).
+#
+# Part 2's adapter (~/inmobi_agent/diagnose.py on the VM) already does the
+# deterministic detection + drill-down (Detector + Attributor, per the
+# team's "Agents — InMobi Root-Cause Analyst" spec) — the Narrator's ONLY
+# job is turning its `findings` into plain language, one LLM call, no
+# tools. These schemas are intentionally separate from RCA/Claim/Check
+# above (that trio is shaped around the tool-calling pipeline's per-
+# tool-call evidence ids, which don't apply here — there's exactly one
+# evidence blob per incident, not N tool calls).
+
+class FoundSegment(BaseModel):
+    dimension: str
+    segment: str
+    contribution_pct: float   # % of the metric's total deviation this segment explains
+    actual: float
+    baseline: float
+
+
+class RuledOutEntry(BaseModel):
+    dimension: str
+    segment: str | None = None   # None when ruling out a whole factor, not a segment
+    note: str
+    value: float | None = None   # z-score or contribution backing the ruling, if any
+
+
+class Findings(BaseModel):
+    """Deterministic output of the Detector+Attributor step — every field
+    here is copied verbatim from Part 2's diagnose() evidence, never
+    computed or estimated by an LLM."""
+    metric: Metric
+    window_start: datetime
+    window_end: datetime
+    baseline: float
+    actual: float
+    deviation_pct: float
+    detector: str
+    found: list[FoundSegment]
+    ruled_out: list[RuledOutEntry]
+    corroboration: dict | None = None
+
+
+class NarratorRCA(BaseModel):
+    rca_id: str = Field(default_factory=lambda: f"narr_{uuid4().hex[:8]}")
+    alert_id: str
+    findings: Findings
+    narrative: str
+    confidence: Literal["high", "medium", "low"]
+    trace_url: str = ""
+    status: Literal["ok", "failed", "low_confidence"] = "ok"
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

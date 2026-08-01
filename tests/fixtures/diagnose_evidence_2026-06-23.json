@@ -1,0 +1,401 @@
+{
+  "window": {
+    "start": "2026-06-23T00:00:00",
+    "end": "2026-06-24T00:00:00"
+  },
+  "trailing_weeks": 3,
+  "z_threshold": 2.0,
+  "topline": {
+    "actual": {
+      "requests": 282692,
+      "fill_rate": 0.750138,
+      "render_rate": 0.980029,
+      "ctr": 0.010162,
+      "ecpm": 2.47108,
+      "revenue": 513.547222
+    },
+    "baseline": {
+      "requests": 270615.666667,
+      "fill_rate": 0.785102,
+      "render_rate": 0.98029,
+      "ctr": 0.011098,
+      "ecpm": 2.476023,
+      "revenue": 515.689518
+    }
+  },
+  "diagnostic_sequence": [
+    {
+      "factor": "requests",
+      "z_score": 2.8,
+      "actual": 282692,
+      "baseline": 270615.666667,
+      "moved": true
+    },
+    {
+      "factor": "fill_rate",
+      "z_score": -162.85,
+      "actual": 0.750138,
+      "baseline": 0.785102,
+      "moved": true
+    },
+    {
+      "factor": "ecpm",
+      "z_score": -0.98,
+      "actual": 2.47108,
+      "baseline": 2.476023,
+      "moved": false
+    },
+    {
+      "factor": "ctr",
+      "z_score": -7.25,
+      "actual": 0.010162,
+      "baseline": 0.011098,
+      "moved": true
+    }
+  ],
+  "flagged_factor": "fill_rate",
+  "flagged_reason": "Demand-side problem \u2014 advertiser budget, targeting, or a demand-partner issue.",
+  "persistence": null,
+  "render_rate_check": {
+    "z_score": -1.12,
+    "actual": 0.980029,
+    "baseline": 0.98029,
+    "moved": false,
+    "note": "Secondary technical check (fill -> impression). Not part of the primary revenue sequence."
+  },
+  "drill_down": {
+    "total_delta": -0.034964,
+    "by_dimension": {
+      "ad_format": {
+        "responsible": [
+          {
+            "segment": "banner",
+            "actual": 0.785981,
+            "baseline": 0.823936,
+            "baseline_share": 0.3473,
+            "contribution": -0.01318
+          },
+          {
+            "segment": "native",
+            "actual": 0.759446,
+            "baseline": 0.792192,
+            "baseline_share": 0.2607,
+            "contribution": -0.008538
+          },
+          {
+            "segment": "interstitial",
+            "actual": 0.736179,
+            "baseline": 0.774621,
+            "baseline_share": 0.1742,
+            "contribution": -0.006696
+          }
+        ],
+        "ruled_out": [
+          {
+            "segment": "video",
+            "contribution": -0.003608
+          },
+          {
+            "segment": "rewarded",
+            "contribution": -0.003072
+          }
+        ]
+      },
+      "category": {
+        "responsible": [
+          {
+            "segment": "ecommerce",
+            "actual": 0.719806,
+            "baseline": 0.754813,
+            "baseline_share": 0.2658,
+            "contribution": -0.009306
+          },
+          {
+            "segment": "gaming",
+            "actual": 0.784406,
+            "baseline": 0.819661,
+            "baseline_share": 0.1933,
+            "contribution": -0.006814
+          },
+          {
+            "segment": "entertainment",
+            "actual": 0.767933,
+            "baseline": 0.801351,
+            "baseline_share": 0.179,
+            "contribution": -0.005982
+          },
+          {
+            "segment": "utility",
+            "actual": 0.713805,
+            "baseline": 0.749918,
+            "baseline_share": 0.116,
+            "contribution": -0.00419
+          }
+        ],
+        "ruled_out": [
+          {
+            "segment": "social",
+            "contribution": -0.003386
+          },
+          {
+            "segment": "news",
+            "contribution": -0.002879
+          },
+          {
+            "segment": "finance",
+            "contribution": -0.002422
+          }
+        ]
+      },
+      "publisher_tier": {
+        "responsible": [
+          {
+            "segment": "tier_2",
+            "actual": 0.776033,
+            "baseline": 0.812231,
+            "baseline_share": 0.4608,
+            "contribution": -0.01668
+          },
+          {
+            "segment": "tier_3",
+            "actual": 0.643576,
+            "baseline": 0.672879,
+            "baseline_share": 0.3386,
+            "contribution": -0.009921
+          }
+        ],
+        "ruled_out": [
+          {
+            "segment": "tier_1",
+            "contribution": -0.008188
+          }
+        ]
+      },
+      "region": {
+        "responsible": [
+          {
+            "segment": "EU",
+            "actual": 0.729682,
+            "baseline": 0.785833,
+            "baseline_share": 0.245,
+            "contribution": -0.013756
+          },
+          {
+            "segment": "APAC",
+            "actual": 0.752789,
+            "baseline": 0.784138,
+            "baseline_share": 0.2838,
+            "contribution": -0.008897
+          },
+          {
+            "segment": "NAM",
+            "actual": 0.762852,
+            "baseline": 0.785849,
+            "baseline_share": 0.2989,
+            "contribution": -0.006874
+          }
+        ],
+        "ruled_out": [
+          {
+            "segment": "MEA",
+            "contribution": -0.002828
+          },
+          {
+            "segment": "LATAM",
+            "contribution": -0.002633
+          }
+        ]
+      },
+      "country": {
+        "responsible": [
+          {
+            "segment": "ES",
+            "actual": 0.734002,
+            "baseline": 0.787591,
+            "baseline_share": 0.1236,
+            "contribution": -0.006625
+          },
+          {
+            "segment": "ID",
+            "actual": 0.716864,
+            "baseline": 0.784198,
+            "baseline_share": 0.0699,
+            "contribution": -0.004708
+          },
+          {
+            "segment": "UK",
+            "actual": 0.703896,
+            "baseline": 0.783512,
+            "baseline_share": 0.0521,
+            "contribution": -0.00415
+          },
+          {
+            "segment": "US",
+            "actual": 0.769067,
+            "baseline": 0.786802,
+            "baseline_share": 0.2009,
+            "contribution": -0.003563
+          },
+          {
+            "segment": "CA",
+            "actual": 0.750108,
+            "baseline": 0.783897,
+            "baseline_share": 0.098,
+            "contribution": -0.003312
+          }
+        ],
+        "ruled_out": [
+          {
+            "segment": "DE",
+            "contribution": -0.001982
+          },
+          {
+            "segment": "IN",
+            "contribution": -0.001599
+          },
+          {
+            "segment": "AE",
+            "contribution": -0.001384
+          },
+          {
+            "segment": "PH",
+            "contribution": -0.001315
+          },
+          {
+            "segment": "JP",
+            "contribution": -0.001284
+          },
+          {
+            "segment": "NG",
+            "contribution": -0.001145
+          },
+          {
+            "segment": "BR",
+            "contribution": -0.001022
+          },
+          {
+            "segment": "FR",
+            "contribution": -0.000972
+          },
+          {
+            "segment": "AR",
+            "contribution": -0.000818
+          },
+          {
+            "segment": "MX",
+            "contribution": -0.000796
+          },
+          {
+            "segment": "ZA",
+            "contribution": -0.000293
+          }
+        ]
+      },
+      "device_model": {
+        "responsible": [
+          {
+            "segment": "Galaxy A54",
+            "actual": 0.730144,
+            "baseline": 0.785977,
+            "baseline_share": 0.2074,
+            "contribution": -0.011579
+          },
+          {
+            "segment": "Redmi Note 12",
+            "actual": 0.69443,
+            "baseline": 0.785642,
+            "baseline_share": 0.093,
+            "contribution": -0.008484
+          },
+          {
+            "segment": "Galaxy S23",
+            "actual": 0.686883,
+            "baseline": 0.789202,
+            "baseline_share": 0.0655,
+            "contribution": -0.006706
+          }
+        ],
+        "ruled_out": [
+          {
+            "segment": "Pixel 7",
+            "contribution": -0.004164
+          },
+          {
+            "segment": "Pixel 8",
+            "contribution": -0.003976
+          },
+          {
+            "segment": "iPhone 14",
+            "contribution": 0.000519
+          },
+          {
+            "segment": "iPhone 13",
+            "contribution": -0.000318
+          },
+          {
+            "segment": "iPhone 15",
+            "contribution": -0.00011
+          }
+        ]
+      },
+      "os_version": {
+        "responsible": [
+          {
+            "segment": "Android 15",
+            "actual": 0.433029,
+            "baseline": 0.785776,
+            "baseline_share": 0.0957,
+            "contribution": -0.033754
+          }
+        ],
+        "ruled_out": [
+          {
+            "segment": "Android 14",
+            "contribution": -0.000386
+          },
+          {
+            "segment": "Android 13",
+            "contribution": -0.000357
+          },
+          {
+            "segment": "iOS 16.4",
+            "contribution": 0.000253
+          },
+          {
+            "segment": "iOS 18.1",
+            "contribution": -0.000237
+          },
+          {
+            "segment": "Android 12",
+            "contribution": -0.000162
+          },
+          {
+            "segment": "iOS 17.2",
+            "contribution": 0.000126
+          },
+          {
+            "segment": "iOS 17.5",
+            "contribution": -5e-05
+          }
+        ]
+      }
+    }
+  },
+  "native_validation": {
+    "lookback_days": 24,
+    "stl_period": 7,
+    "tukey": {
+      "flagged": true,
+      "scores_by_day": {
+        "2026-06-23": -0.032884
+      }
+    },
+    "stl_residual": {
+      "target_max_abs": 0.011574,
+      "next_largest_elsewhere": 0.009539,
+      "ratio_to_next_largest": 1.21,
+      "is_largest_in_lookback": true
+    },
+    "corroborated": true
+  }
+}

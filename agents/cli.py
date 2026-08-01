@@ -8,9 +8,12 @@ Usage:
 
 import argparse
 import json
+import sys
 from datetime import datetime, timezone
 from uuid import uuid4
 
+from agents import narrator_outputs
+from agents.narrator import _derive_alert_id, run_narrator
 from agents.outputs import deliver
 from agents.pipeline import run_rca
 from agents.schemas import Alert
@@ -40,25 +43,47 @@ def main() -> None:
                      default=None)
     inv.add_argument("--detection-params", dest="detection_params", default=None,
                      help='JSON string, e.g. \'{"period": 7}\'')
+
+    narr = sub.add_parser("narrate", help="run the Narrator on a diagnose() evidence file")
+    narr.add_argument("--evidence-file", required=True,
+                      help="path to a JSON file matching Part 2's diagnose() output")
+    narr.add_argument("--alert-id", default=None,
+                      help="override the derived alert_id")
+    narr.add_argument("--force", action="store_true",
+                      help="re-run even if this alert_id already has a narrator_results row")
+
     args = p.parse_args()
 
-    alert = Alert(
-        alert_id=f"cli_{uuid4().hex[:8]}",
-        metric=args.metric,
-        window_start=parse_dt(args.t_from),
-        window_end=parse_dt(args.t_to),
-        direction=args.direction,
-        observed=args.observed,
-        baseline=args.baseline,
-        source="cli",
-        detection_method=args.detection_method,
-        detection_score=args.detection_score,
-        detection_params=(json.loads(args.detection_params)
-                          if args.detection_params else None),
-    )
-    rca = run_rca(alert)
-    deliver(rca)
-    print(json.dumps(rca.model_dump(mode="json"), indent=2))
+    if args.cmd == "investigate":
+        alert = Alert(
+            alert_id=f"cli_{uuid4().hex[:8]}",
+            metric=args.metric,
+            window_start=parse_dt(args.t_from),
+            window_end=parse_dt(args.t_to),
+            direction=args.direction,
+            observed=args.observed,
+            baseline=args.baseline,
+            source="cli",
+            detection_method=args.detection_method,
+            detection_score=args.detection_score,
+            detection_params=(json.loads(args.detection_params)
+                              if args.detection_params else None),
+        )
+        rca = run_rca(alert)
+        deliver(rca)
+        print(json.dumps(rca.model_dump(mode="json"), indent=2))
+
+    elif args.cmd == "narrate":
+        with open(args.evidence_file) as f:
+            evidence = json.load(f)
+        alert_id = args.alert_id or evidence.get("alert_id") or _derive_alert_id(evidence)
+        if not args.force and narrator_outputs.rca_exists(alert_id):
+            print(f"alert_id {alert_id!r} already has a narrator_results "
+                  f"row — pass --force to re-run", file=sys.stderr)
+            return
+        rca = run_narrator(evidence, alert_id=alert_id)
+        narrator_outputs.deliver(rca)
+        print(json.dumps(rca.model_dump(mode="json"), indent=2))
 
 
 if __name__ == "__main__":
