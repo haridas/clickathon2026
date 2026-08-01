@@ -139,3 +139,12 @@ class ClickHouseClient:
         self.ensure_tables()
         self.client.insert_df("revenue_attribution_hourly", attribution)
         return len(attribution)
+
+    def get_revenue_contributors(self, model_run_id: str) -> pd.DataFrame:
+        """Return the stored top contributors for one revenue model run."""
+        return self.client.query_df("""
+            SELECT bucket, dim_name, dim_value, contribution_share, contributor_rank
+            FROM revenue_attribution_hourly
+            WHERE model_run_id = {model_run_id:UUID} AND is_contributor = 1
+            ORDER BY bucket, dim_name, contributor_rank
+        """, parameters={"model_run_id": model_run_id})

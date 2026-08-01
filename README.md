@@ -1,6 +1,6 @@
-# Revenue anomaly detection and root-cause analysis
+# Docker revenue anomaly detection
 
-This project detects **material, sustained global revenue anomalies** in ad-event data and, only when one is confirmed, identifies the segments that best explain the revenue gap. It uses ClickHouse for aggregation and storage, Prophet for the hourly forecast.
+This service detects material, sustained global revenue anomalies, identifies the segments that best explain the gap, stores the evidence in ClickHouse, and emits confirmed incidents to self-hosted HyperDX as OpenTelemetry logs.
 
 ```text
 ad_events -> metrics_hourly -> global revenue Prophet forecast
@@ -8,136 +8,117 @@ ad_events -> metrics_hourly -> global revenue Prophet forecast
                          confirmed incident?
                            | no        | yes
                            v           v
-                       store forecast  forecast one-level segments
+                       store forecast  forecast segments and rank contributors
                                                |
                                                v
-                         revenue_attribution_hourly -> HyperDX alert
+                                      HyperDX anomaly_detected log
 ```
 
-## What it detects
+## Detection rules
 
-Each completed UTC hour has an actual revenue value and a Prophet forecast. A global revenue incident requires all of the following:
+For every completed UTC day, Prophet is trained on the preceding 21–35 complete days and forecasts the target day’s 24 hours. A global revenue incident requires all of these conditions:
 
-- at least 21 prior complete days (three weekly cycles) of training data;
+- at least 21 complete training days;
 - actual revenue outside Prophet's 99% prediction interval;
-- an absolute gap of at least 10% of expected revenue;
-- at least two consecutive anomalous hours in the same direction; and
-- at least 250 requests in each hour.
+- a gap of at least 10% of forecast revenue;
+- two or more consecutive anomalous hours in the same direction; and
+- at least 250 requests per affected hour.
 
-For example, if revenue is expected to be 100,000 with a lower 99% bound of 90,000, 82,000 for three consecutive hours is an alert: it is below the expected range, 18% below forecast, and persistent. A single low hour is recorded but does not page anyone.
+Example: expected revenue is 100,000, the lower prediction bound is 90,000, and actual revenue is 82,000 for three consecutive hours. This is a confirmed 18% revenue-drop incident. A one-hour drop is saved as a forecast result but does not alert.
 
-The detector trains only on data before the day it scores. Historical **persistent** revenue shocks are replaced in the training copy by their same-hour-of-week median so that Prophet does not learn an outage as normal behaviour. The scored target values are never changed.
+After confirmation, the service forecasts one-level segments—region, country, device model, OS version, format, category, publisher tier, vertical, and campaign type. It ranks contributors within each dimension family using `segment residual / global residual`. These families overlap, so category, country, and OS shares must not be summed.
 
-## Segment root cause
+## Docker deployment on the HyperDX VM
 
-When global revenue is confirmed anomalous, the application forecasts the supported one-level segments: region, country, device model, OS version, ad format, category, publisher tier, advertiser vertical, and campaign type. For each target hour it calculates:
+The service is designed to run on the same Linux VM as HyperDX. The Compose service uses host networking, allowing it to send OTLP logs to HyperDX’s loopback-only receiver at `127.0.0.1:4318`; do not publish that port to the internet.
+
+1. Place this repository on the VM and create the Docker-only runtime configuration:
+
+   ```bash
+   cd ~/clickathon2026
+   cp anomaly.env.example anomaly.env
+   nano anomaly.env
+   ```
+
+2. Set the ClickHouse connection values and these HyperDX settings in `anomaly.env`. Keep the file private.
+
+   ```dotenv
+   HYPERDX_API_KEY=your_ingestion_key
+   OTEL_SERVICE_NAME=ad-anomaly-detector
+   OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318
+   OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+   ```
+
+3. The `ad_events` data and its historical hourly rollups must already be available in ClickHouse. Backfill rollups once, with an exclusive end date:
+
+   ```bash
+   docker compose -f compose.anomaly.yml run --rm --no-deps anomaly-detector \
+     python -m anomaly_detection.cli \
+     --backfill-start 2026-06-01 --backfill-end 2026-07-06
+   ```
+
+4. Start the long-running revenue detector:
+
+   ```bash
+   docker compose -f compose.anomaly.yml up -d --build
+   docker compose -f compose.anomaly.yml logs -f anomaly-detector
+   ```
+
+It polls hourly, materializes only an unprocessed finalized day, and therefore does not double-count a daily rollup. The container restarts automatically unless explicitly stopped.
+
+## Verify before enabling alerts
+
+Run one container execution and inspect its logs:
+
+```bash
+docker compose -f compose.anomaly.yml run --rm --no-deps anomaly-detector \
+  python -m anomaly_detection.service --once --metric revenue
+```
+
+To score a known historical day without modifying data:
+
+```bash
+docker compose -f compose.anomaly.yml run --rm --no-deps anomaly-detector \
+  python -m anomaly_detection.cli \
+  --metric revenue --target-day 2026-07-05 --days 35 --dry-run
+```
+
+The ClickHouse output tables are:
+
+- `metrics_hourly` — hourly raw totals by dimension;
+- `metric_baselines_hourly` — actual, forecast, prediction interval, residual, and flag; and
+- `revenue_attribution_hourly` — contributor shares for confirmed global revenue incidents.
+
+## HyperDX alert configuration
+
+Open the HyperDX UI through an SSH tunnel from your computer:
+
+```powershell
+ssh -L 8080:127.0.0.1:8080 <user>@8.231.126.50
+```
+
+Browse to `http://localhost:8080`, create an ingestion API key, and add it to the VM’s `anomaly.env` as `HYPERDX_API_KEY`.
+
+Search for the structured alert event and save this filtered search:
 
 ```text
-global revenue residual      = actual global revenue - expected global revenue
-segment contribution share   = segment residual / global residual
+event:anomaly_detected AND metric:revenue AND dim_name:global
 ```
 
-The top three same-direction segments are retained **within each dimension family**. For example, `category=finance` might explain 30% of the gap and `os_version=Android 15` 20%. Country, category, and OS overlap, so their percentages are separate diagnostic views and must never be added together.
+Create a HyperDX alert on that saved search with a count above `0`, checked every hour. Connect Slack, email, or PagerDuty. The filter is important: it generates one notification for the global incident while the `contributors` field holds the ranked segment RCA.
 
-This is segment attribution, not proof of business causality. To state whether a loss was caused by traffic, fill, rendering, or price, examine the companion metrics using:
+## Operational commands
 
-```text
-revenue = requests x fill_rate x render_rate x eCPM / 1000
+```bash
+# Status and logs
+docker compose -f compose.anomaly.yml ps
+docker compose -f compose.anomaly.yml logs -f anomaly-detector
+
+# Stop without deleting ClickHouse data
+docker compose -f compose.anomaly.yml down
+
+# Rebuild after a code or dependency change
+docker compose -f compose.anomaly.yml up -d --build
 ```
 
-## Required files
-
-- `clickhouse_client.py` — source schema, hourly rollup, and ClickHouse reads/writes.
-- `config.py` — supported metrics and dimensions.
-- `load_data.py` — loads the supplied source data.
-- `realtime_generator.py` — controlled test-event generator.
-- `anomaly_detection/` — Prophet preparation, forecast, scoring, attribution, scheduler, and backtest.
-- `alerts/` — ClickHouse candidate query and HyperDX publisher/configuration.
-
-`data/` contains the supplied input data. Do not commit it or `.env`.
-
-## Setup and historical backfill
-
-1. Create a virtual environment, install dependencies, and set the ClickHouse connection values in `.env` from `.env.example`. Never commit `.env`.
-
-   ```powershell
-   python -m venv .venv
-   .\.venv\Scripts\Activate.ps1
-   pip install -r requirements.txt
-   ```
-
-2. Load the provided data. `--reset` truncates the project tables first, so use it only when a reload is intended.
-
-   ```powershell
-   python load_data.py --reset
-   ```
-
-3. Create the hourly rollups once for historical data. The end date is exclusive.
-
-   ```powershell
-   python -m anomaly_detection.cli --backfill-start 2026-06-01 --backfill-end 2026-07-06
-   ```
-
-## Run revenue detection
-
-Use a dry run to see confirmed anomaly hours without writing model rows:
-
-```powershell
-python -m anomaly_detection.cli --metric revenue --target-day 2026-07-05 --days 35 --dry-run
-```
-
-Run without `--dry-run` to save forecasts, confirmed flags, and (when required) segment attribution:
-
-```powershell
-python -m anomaly_detection.cli --metric revenue --target-day 2026-07-05 --days 35
-python alerts/check_alerts.py --day 2026-07-05
-```
-
-The primary output tables are:
-
-- `metrics_hourly` — raw hourly totals by dimension;
-- `metric_baselines_hourly` — global and, during confirmed revenue incidents, segment forecasts; and
-- `revenue_attribution_hourly` — ranked segment residual shares for confirmed global revenue hours.
-
-## Evaluate the model
-
-Use rolling out-of-sample evaluation. Every test day is forecast only from its preceding training window; no future observations enter training.
-
-```powershell
-python -m anomaly_detection.backtest --metric revenue --train-days 21 --test-start 2026-06-22 --test-end 2026-07-06
-```
-
-Review MAE and RMSE for forecast error, interval coverage against the configured 99% interval, and the confirmed anomaly hours. The first 21 days are cold-start training only and cannot be assessed with this seasonal model.
-
-## Automation and HyperDX
-
-After incoming data for a UTC day is final, score the previous day once:
-
-```powershell
-python -m anomaly_detection.runner --once --metric revenue
-```
-
-For continuous polling:
-
-```powershell
-python -m anomaly_detection.runner --check-every-seconds 3600 --metric revenue
-```
-
-To publish confirmed candidates to HyperDX, add `HYPERDX_API_KEY` and `OTEL_SERVICE_NAME` to your deployment secret store, then schedule:
-
-```powershell
-opentelemetry-instrument python alerts/daily_workflow.py --metric revenue
-```
-
-Follow [the HyperDX configuration guide](alerts/hyperdx/README.md) to create the saved-search alert. The publisher emits only confirmed rows from `alerts/anomaly_alert.sql`.
-
-## Controlled test data
-
-The generator inserts future event-time batches; it does not make a completed historical day anomalous by itself. Generate enough event time to close a day, then run the scheduler:
-
-```powershell
-python realtime_generator.py --scenario revenue_drop --events-per-batch 10000 --simulated-seconds-per-batch 3600
-python -m anomaly_detection.runner --once --metric revenue
-```
-
-Use it after normal history has established the 21-day minimum. For a realistic test, first generate normal data and then run the revenue-drop scenario for several consecutive simulated hours.
+Do not commit `anomaly.env`, `.env`, or `data/`.

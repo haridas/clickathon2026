@@ -7,4 +7,5 @@ matplotlib
 plotly
 python-dotenv
 scikit-learn
-hyperdx-opentelemetry
+opentelemetry-sdk
+opentelemetry-exporter-otlp-proto-http
