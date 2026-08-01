@@ -1,0 +1,9 @@
+clickhouse-connect
+pandas
+pyarrow
+numpy
+prophet
+matplotlib
+plotly
+python-dotenv
+scikit-learn
