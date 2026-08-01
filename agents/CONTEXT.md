@@ -70,13 +70,22 @@ from earlier phases, which is now retired/redundant).
   it). Port 9100 is **not** reachable from the public internet (GCP
   firewall) — that's fine, it only needs to be reachable from other
   containers on the VM.
-- **Langfuse**: still points at nothing (`LANGFUSE_PUBLIC_KEY` empty in the
-  VM's `.env`) — pipeline runs fine without it, just skips tracing. VM has
-  its own Langfuse docker stack (`langfuse-langfuse-web-1` on port 3000).
-  **TODO**: get a public/secret key pair from that instance's UI (reachable
-  via the SSH tunnel's `-L 3000:localhost:3000`, or directly on the VM at
-  `http://localhost:3000`) and drop them into the VM's `.env`, then
-  `sudo systemctl restart rca-api`.
+- **Langfuse**: ✓ working end-to-end. Org "Clickathon 2026" / project
+  "Clickathon" (login `haridas.nss@gmail.com`), API key pair created and in
+  the VM's `.env` (`LANGFUSE_PUBLIC_KEY`/`LANGFUSE_SECRET_KEY`,
+  `LANGFUSE_HOST=http://localhost:3000`). Traces confirmed showing the full
+  4-stage tree (triage/investigator/skeptic/writer, each with their model +
+  tool spans, per-call cost/tokens).
+  **Found and fixed a pre-existing shared-infra bug while wiring this up**:
+  the VM's Langfuse docker-compose (`/mnt/data/clickathon/langfuse/`) had a
+  `MINIO_ROOT_PASSWORD` that was never propagated to the three
+  `LANGFUSE_S3_*_SECRET_ACCESS_KEY` vars, so they silently fell back to the
+  compose file's `miniosecret` placeholder — every trace export failed
+  with `SignatureDoesNotMatch` and nothing ever persisted, for anyone, since
+  before this session touched the VM. Fixed by setting all three secret-key
+  vars to match the real `MINIO_ROOT_PASSWORD` value and recreating
+  `langfuse-web`/`langfuse-worker` (`docker compose up -d`). Original
+  `.env` backed up alongside it as `.env.bak.<timestamp>` before editing.
 - Richard's laptop `.env`/ClickHouse Cloud copy of the data is now a stale
   dev-only fallback — not the system of record anymore.
 
