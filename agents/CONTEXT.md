@@ -2,7 +2,8 @@
 
 > Handoff file for continuing work on the `agents/` package. Update the
 > "Current state" and "Next steps" sections at the end of every session.
-> Last updated: 2026-08-01 ~19:45 IST (Phase 4 complete — FastAPI webhook live).
+> Last updated: 2026-08-01 ~20:15 IST (deployed to the shared GCP VM,
+> switched to the real 9-dim dataset).
 
 ## What this is
 
@@ -32,6 +33,52 @@ Master team plan: `~/clickathon/specs/inmobi-rca-analyst-24h-plan.html`.
 - ~~Temperature 0 everywhere~~ **omit `temperature` entirely** — current Claude
   models 400 on it ("deprecated"); `recursion_limit=15`; ~60s budget per RCA;
   tools return top-20 rows max and include the executed SQL in a `"sql"` field.
+
+## Architecture pivot: now deployed on the shared GCP VM (2026-08-01 evening)
+
+The system no longer runs on Richard's laptop or ClickHouse Cloud — it runs
+on the **team's shared GCP VM** where HyperDX, Langfuse, and LibreChat also
+live, using **haridas's real dataset** (not the ClickHouse Cloud fallback
+from earlier phases, which is now retired/redundant).
+
+- **VM**: `haridas@35.244.54.139` (IP is ephemeral — it changed once
+  already this session; if SSH stops connecting, ask haridas for the
+  current IP). Key: `/Users/richardpaul/Downloads/clickathon2026_key`.
+  SSH is firewalled to allowlisted source IPs only (GCP VPC firewall) —
+  ping works, port 22 won't until your IP is added.
+- **Data**: ClickHouse running as a **local docker container** (`clickhouse`,
+  not the `langfuse-clickhouse-1` or HyperDX-internal ones — there are
+  three ClickHouse containers on this box, don't confuse them). Database
+  `hackathon`, user/password `hackathon`/`hackathon2026`, plain HTTP on
+  `127.0.0.1:8123` (not HTTPS — `CLICKHOUSE_SECURE=false`). Has the REAL
+  dimension tables (`apps` 2000 rows, `advertisers` 500 rows, `geo_device`
+  5000 rows — haridas recovered the files the broken LFS pointers were
+  blocking) plus `ad_events` (9M rows, same window). `agents/schema_setup.py`
+  builds `events_enriched` as a view joining all three onto `ad_events`,
+  giving the **full 9-dimension plan** (region, country, device_model,
+  os_version, app_category, publisher_tier, ad_format, vertical,
+  campaign_type) — `agents/tools.py::DIMENSIONS` now has all 9, up from 4.
+- **Service**: runs as a **systemd service** (`rca-api.service`, `enable`d
+  so it survives reboot, `Restart=on-failure`). Manage it via
+  `sudo systemctl {status,restart,stop} rca-api` on the VM, logs via
+  `journalctl -u rca-api -f`.
+- **Webhook URL for HyperDX**: `http://172.19.0.1:9100/alert` — that's
+  HyperDX's own container's Docker-network gateway IP (its `clickstack`
+  container is on the `clickstack_default` network, gateway `172.19.0.1`,
+  NOT the default bridge's `172.17.0.1` — verified by literally
+  `docker exec clickstack curl http://172.19.0.1:9100/health` from inside
+  it). Port 9100 is **not** reachable from the public internet (GCP
+  firewall) — that's fine, it only needs to be reachable from other
+  containers on the VM.
+- **Langfuse**: still points at nothing (`LANGFUSE_PUBLIC_KEY` empty in the
+  VM's `.env`) — pipeline runs fine without it, just skips tracing. VM has
+  its own Langfuse docker stack (`langfuse-langfuse-web-1` on port 3000).
+  **TODO**: get a public/secret key pair from that instance's UI (reachable
+  via the SSH tunnel's `-L 3000:localhost:3000`, or directly on the VM at
+  `http://localhost:3000`) and drop them into the VM's `.env`, then
+  `sudo systemctl restart rca-api`.
+- Richard's laptop `.env`/ClickHouse Cloud copy of the data is now a stale
+  dev-only fallback — not the system of record anymore.
 
 ## Current state (end of Phase 4 — pipeline + webhook live, all verified working)
 

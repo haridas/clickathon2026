@@ -24,6 +24,8 @@ def client():
         port=int(os.getenv("CLICKHOUSE_PORT", "8443")),
         username=os.getenv("CLICKHOUSE_USER", "default"),
         password=os.environ["CLICKHOUSE_PASSWORD"],
+        database=os.getenv("CLICKHOUSE_DATABASE", "default"),
+        secure=os.getenv("CLICKHOUSE_SECURE", "true").lower() == "true",
     )
 
 

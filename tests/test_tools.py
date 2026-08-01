@@ -48,7 +48,7 @@ contrib = check("contribution_by_dimension", contribution_by_dimension.invoke(
     {"dimension": "ad_format", "window_start": WS, "window_end": WE}),
     "top", "sql")
 drill = check("drilldown_filtered", drilldown_filtered.invoke(
-    {"dimension": "app_id", "parent_dimension": "ad_format",
+    {"dimension": "region", "parent_dimension": "ad_format",
      "parent_value": contrib["top"][0]["segment"].split("=", 1)[1],
      "window_start": WS, "window_end": WE}), "top", "sql")
 seas = check("seasonality_check", seasonality_check.invoke(

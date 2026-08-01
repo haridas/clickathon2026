@@ -26,15 +26,18 @@ from agents import db
 TABLE = "events_enriched"
 
 # Dimensions the agent may group by, mapped to real column expressions.
-# The full 9-dim plan (region, country, device_model, os_version,
-# app_category, publisher_tier, ad_format, vertical, campaign_type) needs
-# the dimension CSVs, which are broken git-LFS pointers — until they are
-# recovered only the raw event columns are available.
+# The full 9-dim plan — events_enriched joins in apps/advertisers/geo_device
+# (see agents/schema_setup.py) so every one of these is a real column.
 DIMENSIONS = {
+    "region": "region",
+    "country": "country",
+    "device_model": "device_model",
+    "os_version": "os_version",
+    "app_category": "app_category",
+    "publisher_tier": "publisher_tier",
     "ad_format": "ad_format",
-    "app_id": "app_id",
-    "advertiser_id": "advertiser_id",
-    "geo_device_id": "geo_device_id",
+    "vertical": "vertical",
+    "campaign_type": "campaign_type",
 }
 
 METRICS = ["revenue", "requests", "fill_rate", "ctr", "ecpm"]
@@ -269,8 +272,9 @@ def contribution_by_dimension(dimension: str, window_start: str,
                               window_end: str, metric: str = "revenue") -> str:
     """Rank segments of ONE dimension by contribution to the metric's
     change vs baseline. Call factor_decompose FIRST to know which metric
-    to pass. dimension: one of ad_format, app_id, advertiser_id,
-    geo_device_id. Top 20 segments, ranked by absolute delta."""
+    to pass. dimension: one of region, country, device_model, os_version,
+    app_category, publisher_tier, ad_format, vertical, campaign_type.
+    Top 20 segments, ranked by absolute delta."""
     return _contribution(dimension, window_start, window_end, metric)
 
 
