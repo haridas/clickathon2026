@@ -1,0 +1,13 @@
+services:
+  anomaly-detector:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - anomaly.env
+    # This is intentional on the Linux VM that hosts HyperDX. It lets the
+    # container reach HyperDX's loopback-only OTLP receiver at 127.0.0.1:4318.
+    network_mode: host
+    restart: unless-stopped
+    init: true
+    command: ["python", "-m", "anomaly_detection.service", "--check-every-seconds", "3600", "--metric", "revenue"]

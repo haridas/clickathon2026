@@ -1,0 +1,14 @@
+.git
+.env
+anomaly.env
+.venv
+__pycache__
+*.pyc
+data
+*.parquet
+*.csv
+README.md
+AGENTS.md
+LICENSE
+load_data.py
+realtime_generator.py
