@@ -49,7 +49,17 @@ The service is designed to run on the same Linux VM as HyperDX. The Compose serv
    OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
    ```
 
-3. The `ad_events` data and its historical hourly rollups must already be available in ClickHouse. Backfill rollups once, with an exclusive end date:
+3. Build one image that supports both AMD64 and ARM64. Replace the registry image with your GitHub Container Registry, Docker Hub, or private-registry path. This pushes a manifest list; each VM then pulls its own native variant.
+
+   ```bash
+   docker buildx create --name anomaly-multiarch --use --bootstrap
+   ANOMALY_IMAGE=ghcr.io/<owner>/clickathon-anomaly-detector:latest \
+     docker buildx bake --push
+   ```
+
+   A regular `docker build` or `docker compose up --build` creates only the architecture of the machine that runs it. Do not use `--load` for the two-platform build.
+
+4. The `ad_events` data and its historical hourly rollups must already be available in ClickHouse. Backfill rollups once, with an exclusive end date:
 
    ```bash
    docker compose -f compose.anomaly.yml run --rm --no-deps anomaly-detector \
@@ -57,10 +67,12 @@ The service is designed to run on the same Linux VM as HyperDX. The Compose serv
      --backfill-start 2026-06-01 --backfill-end 2026-07-06
    ```
 
-4. Start the long-running revenue detector:
+5. Pull and start the native image on the HyperDX VM:
 
    ```bash
-   docker compose -f compose.anomaly.yml up -d --build
+   export ANOMALY_IMAGE=ghcr.io/<owner>/clickathon-anomaly-detector:latest
+   docker compose -f compose.anomaly.yml pull
+   docker compose -f compose.anomaly.yml up -d --no-build
    docker compose -f compose.anomaly.yml logs -f anomaly-detector
    ```
 

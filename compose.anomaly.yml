@@ -1,5 +1,6 @@
 services:
   anomaly-detector:
+    image: ${ANOMALY_IMAGE:-clickathon-anomaly-detector:local}
     build:
       context: .
       dockerfile: Dockerfile
