@@ -11,6 +11,15 @@ Every tool output is appended to `evidence` with an id (t1, t2, ...); the
 Writer may only cite those ids, so every number in the RCA is a ClickHouse
 result by construction. One Langfuse trace spans the whole run.
 
+Cost control: before spending any LLM tokens, `_screen()` calls
+metric_overview directly (plain Python, zero tokens) and checks the
+alerted metric's z-score. If it's within normal statistical noise
+(|z| < RCA_SIGNIFICANCE_Z, default 2.0), the pipeline returns immediately
+with a short "no investigation needed" RCA — skipping Triage, Investigator,
+Skeptic, and Writer entirely for alerts that turn out not to be real
+anomalies. This is the dominant cost lever: the full pipeline costs
+roughly $0.15-0.20/run in LLM tokens; the screen costs nothing.
+
 No `temperature` anywhere — current Claude models reject the parameter.
 """
 
@@ -30,6 +39,11 @@ from agents.schemas import RCA, Alert, Claim
 load_dotenv()
 
 RECURSION_LIMIT = 15  # ~7 tool calls + model turns per stage
+
+# Below this |z|, the alerted metric is within normal statistical noise vs
+# its 4-week baseline — not worth spending LLM tokens investigating.
+# Tunable per event without a code change.
+SIGNIFICANCE_Z = float(os.getenv("RCA_SIGNIFICANCE_Z", "2.0"))
 
 
 def _model(kind: str):
@@ -111,9 +125,11 @@ pipeline. Find WHY the metric moved. Method, in order:
    available dimensions (ad_format, app_id, advertiser_id, geo_device_id)
    -> which segment(s) drive the change.
 3. If one segment dominates, drilldown_filtered inside it for a second level.
-Use AT MOST 8 tool calls. Finish with a <=120-word conclusion naming the
-factor and the guilty segment(s) with their numbers. Every number must come
-from a tool output — never estimate."""
+Use AT MOST 8 tool calls, but stop as soon as you're confident — if the
+factor and segment are already clear after 2-3 calls, conclude immediately
+rather than using the full budget just because it's available. Finish with
+a <=120-word conclusion naming the factor and the guilty segment(s) with
+their numbers. Every number must come from a tool output — never estimate."""
 
 SKEPTIC_PROMPT = """You are the Skeptic stage of an ad-metrics RCA pipeline.
 You receive the Investigator's conclusion and the evidence so far. Your job:
@@ -156,6 +172,43 @@ def run_rca(alert: Alert) -> RCA:
 
     evidence: list[dict] = []
 
+    def screen() -> RCA | None:
+        """Zero-LLM-token gate: pull metric_overview directly (plain
+        Python, no agent) and check whether the alerted metric's z-score
+        even clears the significance bar. If not, return a short RCA
+        immediately instead of spending tokens on Triage/Investigator/
+        Skeptic/Writer. Returns None to proceed with the full pipeline."""
+        raw = T.metric_overview.invoke({"window_start": ws, "window_end": we})
+        data = json.loads(raw)
+        evidence.append({"id": f"t{len(evidence) + 1}", "tool": "metric_overview",
+                         "args": {"window_start": ws, "window_end": we},
+                         "output": raw})
+        m = data.get("metrics", {}).get(alert.metric)
+        z = m.get("z") if m else None
+        if m is None or z is None or abs(z) >= SIGNIFICANCE_Z:
+            return None  # ambiguous or genuinely significant — investigate fully
+        eid = evidence[-1]["id"]
+        return RCA(
+            alert_id=alert.alert_id, metric=alert.metric,
+            window_start=alert.window_start, window_end=alert.window_end,
+            factor="unknown", segments=[],
+            narrative=(
+                f"No investigation needed: {alert.metric} is within normal "
+                f"statistical variation vs its 4-week baseline (z={z:g}, "
+                f"threshold ±{SIGNIFICANCE_Z:g}). Observed {m['observed']:g} "
+                f"vs baseline {m['baseline']:g} "
+                f"({m.get('pct_change', 0) or 0:+g}%). Skipped the deep "
+                f"investigation to avoid unnecessary cost on what looks "
+                f"like noise, not a real anomaly."
+            ),
+            claims=[Claim(
+                text=(f"{alert.metric} observed {m['observed']:g} vs "
+                      f"baseline {m['baseline']:g}, z={z:g}"),
+                value=z, tool_call_id=eid,
+            )],
+            ruled_out=[], confidence="high",
+        )
+
     def stage(name: str, model_kind: str, tools: list, prompt: str, task: str) -> str:
         agent = create_agent(_model(model_kind), tools=tools,
                              system_prompt=prompt, name=name)
@@ -167,6 +220,9 @@ def run_rca(alert: Alert) -> RCA:
         return _harvest(result, evidence)
 
     def investigate() -> RCA:
+        screened = screen()
+        if screened is not None:
+            return screened
         triage = stage("triage", "FAST", [T.metric_overview], TRIAGE_PROMPT,
                        alert_text)
         invest = stage(

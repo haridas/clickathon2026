@@ -23,21 +23,21 @@ from langchain_core.tools import tool
 
 from agents import db
 
-TABLE = "events_enriched"
+TABLE = "ad_events"
 
-# Dimensions the agent may group by, mapped to real column expressions.
-# The full 9-dim plan — events_enriched joins in apps/advertisers/geo_device
-# (see agents/schema_setup.py) so every one of these is a real column.
+# Dimensions the agent may group by, mapped to qualified column expressions
+# against the aliases used in WINDOWED_JOIN below (e = ad_events, g =
+# geo_device, a = apps, d = advertisers).
 DIMENSIONS = {
-    "region": "region",
-    "country": "country",
-    "device_model": "device_model",
-    "os_version": "os_version",
-    "app_category": "app_category",
-    "publisher_tier": "publisher_tier",
-    "ad_format": "ad_format",
-    "vertical": "vertical",
-    "campaign_type": "campaign_type",
+    "region": "g.region",
+    "country": "g.country",
+    "device_model": "g.device_model",
+    "os_version": "g.os_version",
+    "app_category": "a.category",
+    "publisher_tier": "a.publisher_tier",
+    "ad_format": "e.ad_format",
+    "vertical": "d.vertical",
+    "campaign_type": "d.campaign_type",
 }
 
 METRICS = ["revenue", "requests", "fill_rate", "ctr", "ecpm"]
@@ -54,12 +54,25 @@ PROXY = {
 # ---------------------------------------------------------------- SQL --
 # One constants block, judge-readable. k = weeks back (0 = the alert
 # window itself, 1..4 = the like-for-like baseline weeks).
+#
+# WINDOWED_JOIN filters ad_events down to just the alert's window (+ the 4
+# baseline weeks) *before* joining the dimension tables — the inner
+# subquery forces that ordering regardless of the optimizer's own
+# join-pushdown decisions, so every tool query touches a few thousand rows
+# of ad_events, never all 9M, however deep in a 5-week table it lives.
 
 _WINDOW_K = ("(event_time >= {{ws:DateTime}} - INTERVAL {k} WEEK "
              "AND event_time < {{we:DateTime}} - INTERVAL {k} WEEK)")
 WINDOWS = " OR ".join(_WINDOW_K.format(k=k) for k in range(5))
 K_EXPR = "multiIf(" + ", ".join(
     _WINDOW_K.format(k=k) + f", {k}" for k in range(4)) + ", 4)"
+
+WINDOWED_JOIN = f"""
+(SELECT * FROM {TABLE} WHERE ({WINDOWS})) e
+LEFT JOIN geo_device g ON e.geo_device_id = g.geo_device_id
+LEFT JOIN apps a ON e.app_id = a.app_id
+LEFT JOIN advertisers d ON e.advertiser_id = d.advertiser_id
+"""
 
 SUMS_SQL = f"""
 SELECT {K_EXPR} AS k,
@@ -68,8 +81,8 @@ SELECT {K_EXPR} AS k,
        sum(is_impression) AS imps,
        sum(is_click)      AS clicks,
        sum(revenue)       AS revenue
-FROM {TABLE}
-WHERE ({WINDOWS})__EXTRA__
+FROM {WINDOWED_JOIN}
+WHERE 1=1__EXTRA__
 GROUP BY k ORDER BY k
 """
 
@@ -92,8 +105,8 @@ FROM (
            sum(is_impression) AS imps,
            sum(is_click)      AS clicks,
            sum(revenue)       AS revenue
-    FROM {TABLE}
-    WHERE ({WINDOWS})__EXTRA__
+    FROM {WINDOWED_JOIN}
+    WHERE 1=1__EXTRA__
     GROUP BY segment, k
 )
 GROUP BY segment
