@@ -216,3 +216,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Local-only session notes — not shared via GitHub
+agents/CONTEXT.md
+agents/instructions.md
