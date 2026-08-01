@@ -7,20 +7,8 @@ from datetime import timedelta
 import logging
 import time
 
-from clickhouse_client import ClickHouseClient
 from config import SUPPORTED_DIMENSIONS, SUPPORTED_METRICS
-from pipeline import AnomalyPipeline, DetectionRequest
-
-
-def run_once(days: int, metrics: tuple[str, ...]) -> None:
-    repository = ClickHouseClient()
-    # Data-time, not wall-clock time: works for production and accelerated demos.
-    completed_day = repository.latest_event_day() - timedelta(days=1)
-    end = completed_day + timedelta(days=1)
-    repository.materialize_daily_rollup(completed_day)
-    pipeline = AnomalyPipeline(repository)
-    for metric in metrics:
-        pipeline.run(DetectionRequest(metric, SUPPORTED_DIMENSIONS, end - timedelta(days=days), end, True))
+from anomaly_detection.scheduler import run_once
 
 
 def main() -> None:

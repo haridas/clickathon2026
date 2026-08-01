@@ -6,7 +6,7 @@ import logging
 
 from clickhouse_client import ClickHouseClient
 from config import SUPPORTED_DIMENSIONS, SUPPORTED_METRICS
-from pipeline import AnomalyPipeline, DetectionRequest
+from anomaly_detection.pipeline import AnomalyPipeline, DetectionRequest
 
 
 def parse_date(value: str) -> date:

@@ -1,8 +1,4 @@
-"""Validation of daily Prophet input."""
+"""Backward-compatible import; use anomaly_detection.preprocessing instead."""
+from anomaly_detection.preprocessing import prepare_daily_series
 
-import pandas as pd
-
-
-def prepare_daily_series(frame: pd.DataFrame) -> pd.DataFrame:
-    """Return unique, ordered observations; missing days are not invented."""
-    return frame[["ds", "y"]].copy().dropna().sort_values("ds").drop_duplicates("ds", keep="last")
+__all__ = ("prepare_daily_series",)

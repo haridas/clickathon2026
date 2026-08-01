@@ -60,7 +60,7 @@ class ClickHouseClient:
             ) ENGINE = MergeTree ORDER BY (metric, dim_name, dim_value, day, model_run_id)
         """)
 
-    def materialize_daily_rollup(self, day: date) -> None:
+    def materialize_daily_rollup(self, day: date) -> bool:
         """Insert one finalized UTC day once; protects SummingMergeTree from duplicates."""
         self.ensure_tables()
         existing = self.client.query_df(
@@ -69,7 +69,7 @@ class ClickHouseClient:
         )
         if int(existing.iloc[0]["rows"]) > 0:
             LOGGER.warning("Rollup for %s already exists; skipped to prevent double-counting.", day)
-            return
+            return False
         dimensions = ", ".join(f"('{name}', {value})" for name, value in ROLLUP_DIMENSIONS.items())
         self.client.command(f"""
             INSERT INTO {METRICS_DAILY_TABLE}
@@ -86,6 +86,7 @@ class ClickHouseClient:
             GROUP BY day, dim_name, dim_value
         """, parameters={"day": day})
         LOGGER.info("Materialized daily rollup for %s", day)
+        return True
 
     def latest_event_day(self) -> date:
         """Return the latest event day; supports both live and accelerated demo clocks."""
