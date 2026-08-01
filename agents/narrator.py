@@ -180,10 +180,20 @@ def _narrative_guardrail(narrative: str, findings_json: str) -> list[str]:
     return bad
 
 
-def narrate(findings: Findings, callbacks: list | None = None) -> tuple[str, bool]:
-    """One LLM call, no tools. Returns (narrative, guardrail_failed) —
-    guardrail_failed is True only if a number was still unverifiable after
-    one retry."""
+def _usage(resp) -> tuple[int, int]:
+    """Pull (input_tokens, output_tokens) off a LangChain AIMessage —
+    available synchronously on the response itself, no Langfuse round-trip
+    needed for token counts (only the $ cost figure needs Langfuse, since
+    it owns the model pricing table)."""
+    u = getattr(resp, "usage_metadata", None) or {}
+    return u.get("input_tokens", 0), u.get("output_tokens", 0)
+
+
+def narrate(findings: Findings, callbacks: list | None = None) -> tuple[str, bool, int, int]:
+    """One LLM call (two if the guardrail retry fires), no tools. Returns
+    (narrative, guardrail_failed, input_tokens, output_tokens) — token
+    counts summed across the retry if it happened; guardrail_failed is
+    True only if a number was still unverifiable after one retry."""
     findings_json = findings.model_dump_json()
     model = _model("FAST")
     config = {"callbacks": callbacks or [], "run_name": "narrator"}
@@ -192,6 +202,7 @@ def narrate(findings: Findings, callbacks: list | None = None) -> tuple[str, boo
         HumanMessage(content=f"findings:\n{findings_json}"),
     ]
     resp = model.invoke(messages, config=config)
+    in_tok, out_tok = _usage(resp)
     narrative = resp.text if isinstance(resp.text, str) else str(resp.content)
     bad = _narrative_guardrail(narrative, findings_json)
     if bad:
@@ -202,9 +213,31 @@ def narrate(findings: Findings, callbacks: list | None = None) -> tuple[str, boo
             f"verbatim in findings. Drop any claim you can't support."
         )))
         resp = model.invoke(messages, config=config)
+        retry_in, retry_out = _usage(resp)
+        in_tok += retry_in
+        out_tok += retry_out
         narrative = resp.text if isinstance(resp.text, str) else str(resp.content)
         bad = _narrative_guardrail(narrative, findings_json)
-    return narrative, bool(bad)
+    return narrative, bool(bad), in_tok, out_tok
+
+
+def _fetch_trace_cost(lf, trace_id: str) -> float | None:
+    """Langfuse computes cost server-side from its own model-pricing table
+    (why we don't hardcode a price table here) — but ingestion is async, so
+    the trace may not be processed yet right after flush(). Two short
+    retries; if it's still not there, cost_usd stays None (an honest
+    "pending", never a fabricated number)."""
+    import time
+    for attempt in range(3):
+        try:
+            trace = lf.api.trace.get(trace_id)
+            if trace.total_cost is not None:
+                return trace.total_cost
+        except Exception:
+            pass
+        if attempt < 2:
+            time.sleep(0.7)
+    return None
 
 
 def run_narrator(evidence: dict, alert_id: str | None = None) -> NarratorRCA:
@@ -222,7 +255,8 @@ def run_narrator(evidence: dict, alert_id: str | None = None) -> NarratorRCA:
 
     def build() -> NarratorRCA:
         findings = build_findings(evidence)
-        narrative, guardrail_failed = narrate(findings, callbacks=callbacks)
+        narrative, guardrail_failed, input_tokens, output_tokens = narrate(
+            findings, callbacks=callbacks)
         corroborated = bool(findings.corroboration and findings.corroboration.get("corroborated"))
         confidence = "high" if corroborated else "medium"
         status = "ok"
@@ -234,22 +268,27 @@ def run_narrator(evidence: dict, alert_id: str | None = None) -> NarratorRCA:
         return NarratorRCA(
             alert_id=alert_id, findings=findings, narrative=narrative,
             confidence=confidence, status=status,
+            input_tokens=input_tokens, output_tokens=output_tokens,
         )
 
     try:
+        trace_id = None
         if lf is not None:
             with lf.start_as_current_observation(
                     name=f"narrator {alert_id}", as_type="span") as root:
                 rca = build()
+                trace_id = lf.get_current_trace_id()
                 try:
-                    trace_url = lf.get_trace_url(trace_id=lf.get_current_trace_id())
+                    trace_url = lf.get_trace_url(trace_id=trace_id)
                 except Exception:
-                    trace_url = f"trace_id={lf.get_current_trace_id()}"
+                    trace_url = f"trace_id={trace_id}"
                 root.set_trace_io(input=evidence, output=rca.model_dump(mode="json"))
             lf.flush()
         else:
             rca = build()
         rca.trace_url = trace_url
+        if lf is not None and trace_id is not None:
+            rca.cost_usd = _fetch_trace_cost(lf, trace_id)
         return rca
     except Exception as e:  # noqa: BLE001 — an alert must always yield a row
         now = datetime.now(timezone.utc)

@@ -7,10 +7,19 @@ agent", clearly headed so it's visually distinct from ## RCA blocks).
 
 import json
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 from agents import db
-from agents.schemas import NarratorRCA
+from agents.schemas import Findings, FoundSegment, NarratorRCA, RuledOutEntry
+
+
+def _as_utc(dt: datetime) -> datetime:
+    """clickhouse-connect returns naive datetimes for our UTC columns — a
+    naive value serializes to JSON with no offset, which browsers then
+    parse as *local* time (`new Date("...")` with no 'Z'/offset), silently
+    shifting every relative-time display by the browser's UTC offset."""
+    return dt if dt.tzinfo is not None else dt.replace(tzinfo=timezone.utc)
 
 INDEX_MD = Path(__file__).resolve().parent.parent / "index.md"
 
@@ -32,13 +41,27 @@ CREATE TABLE IF NOT EXISTS narrator_results (
   narrative     String,
   confidence    LowCardinality(String),
   trace_url     String,
-  status        LowCardinality(String)
+  status        LowCardinality(String),
+  input_tokens  Nullable(UInt32),
+  output_tokens Nullable(UInt32),
+  cost_usd      Nullable(Float64)
 ) ENGINE = MergeTree ORDER BY created_at
 """
+
+# Added after the table already had rows in production — CREATE TABLE IF
+# NOT EXISTS above won't retrofit columns onto an existing table, so add
+# them explicitly (idempotent, safe to run every startup).
+_ALTER_COLUMNS = [
+    "ALTER TABLE narrator_results ADD COLUMN IF NOT EXISTS input_tokens Nullable(UInt32)",
+    "ALTER TABLE narrator_results ADD COLUMN IF NOT EXISTS output_tokens Nullable(UInt32)",
+    "ALTER TABLE narrator_results ADD COLUMN IF NOT EXISTS cost_usd Nullable(Float64)",
+]
 
 
 def ensure_table() -> None:
     db.command(DDL)
+    for stmt in _ALTER_COLUMNS:
+        db.command(stmt)
 
 
 def rca_exists(alert_id: str) -> bool:
@@ -67,12 +90,13 @@ def write_rca(rca: NarratorRCA) -> None:
             json.dumps([r.model_dump() for r in f.ruled_out]),
             json.dumps(f.corroboration) if f.corroboration is not None else "",
             rca.narrative, rca.confidence, rca.trace_url, rca.status,
+            rca.input_tokens, rca.output_tokens, rca.cost_usd,
         ]],
         column_names=[
             "rca_id", "alert_id", "created_at", "metric", "window_start",
             "window_end", "baseline", "actual", "deviation_pct", "detector",
             "found", "ruled_out", "corroboration", "narrative", "confidence",
-            "trace_url", "status",
+            "trace_url", "status", "input_tokens", "output_tokens", "cost_usd",
         ],
     )
 
@@ -117,6 +141,41 @@ def append_index(rca: NarratorRCA) -> None:
         )
     with INDEX_MD.open("a") as f_:
         f_.write(block)
+
+
+def _row_to_rca(row: dict) -> NarratorRCA:
+    """Inverse of write_rca()'s flattening — rebuilds the nested
+    Findings/FoundSegment/RuledOutEntry shape from the JSON columns so the
+    API hands back the same structure the UI already knows how to render."""
+    corroboration = json.loads(row["corroboration"]) if row["corroboration"] else None
+    findings = Findings(
+        metric=row["metric"], window_start=_as_utc(row["window_start"]),
+        window_end=_as_utc(row["window_end"]),
+        baseline=row["baseline"], actual=row["actual"], deviation_pct=row["deviation_pct"],
+        detector=row["detector"],
+        found=[FoundSegment(**s) for s in json.loads(row["found"])],
+        ruled_out=[RuledOutEntry(**r) for r in json.loads(row["ruled_out"])],
+        corroboration=corroboration,
+    )
+    return NarratorRCA(
+        rca_id=row["rca_id"], alert_id=row["alert_id"], findings=findings,
+        narrative=row["narrative"], confidence=row["confidence"],
+        trace_url=row["trace_url"], status=row["status"],
+        created_at=_as_utc(row["created_at"]),
+        input_tokens=row.get("input_tokens"), output_tokens=row.get("output_tokens"),
+        cost_usd=row.get("cost_usd"),
+    )
+
+
+def list_rca(limit: int = 100) -> list[NarratorRCA]:
+    if not db.configured():
+        return []
+    ensure_table()
+    rows = db.q(
+        "SELECT * FROM narrator_results ORDER BY created_at DESC LIMIT {lim:UInt32}",
+        {"lim": limit},
+    )
+    return [_row_to_rca(r) for r in rows]
 
 
 def deliver(rca: NarratorRCA) -> None:

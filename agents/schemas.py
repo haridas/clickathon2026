@@ -134,3 +134,11 @@ class NarratorRCA(BaseModel):
     trace_url: str = ""
     status: Literal["ok", "failed", "low_confidence"] = "ok"
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    # Cost to diagnose this incident: token counts come straight off the
+    # LLM response (always available, no network round-trip); cost_usd is
+    # pulled from Langfuse's own trace-level cost calculation after the
+    # trace is flushed (Langfuse owns model pricing, not us) — None if
+    # Langfuse isn't configured or the trace hasn't been processed yet.
+    input_tokens: int | None = None
+    output_tokens: int | None = None
+    cost_usd: float | None = None

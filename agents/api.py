@@ -12,9 +12,11 @@ Run:
   uv run uvicorn agents.api:app --host 0.0.0.0 --port 9100
 """
 
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
+from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 
 from agents import narrator_outputs
@@ -84,6 +86,21 @@ def narrate_alert(payload: dict[str, Any], force: bool = False) -> NarratorRCA:
     return rca
 
 
+@app.get("/narrations", response_model=list[NarratorRCA])
+def list_narrations(limit: int = 100) -> list[NarratorRCA]:
+    """Read door for the dashboard — most recent Narrator RCAs first.
+    Read-only, no side effects; safe to poll."""
+    return narrator_outputs.list_rca(limit=limit)
+
+
 @app.exception_handler(ValidationError)
 def handle_validation_error(_, exc: ValidationError):
     raise HTTPException(status_code=422, detail=exc.errors())
+
+
+# Dashboard UI — static, fetches /narrations itself. Mounted last so it
+# never shadows the API routes above (Starlette matches routes in
+# registration order; a Mount at "/" registered first would swallow
+# everything).
+_STATIC_DIR = Path(__file__).resolve().parent / "static"
+app.mount("/", StaticFiles(directory=_STATIC_DIR, html=True), name="dashboard")

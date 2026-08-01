@@ -1,0 +1,956 @@
+<title>RCA Agent by FastLane</title>
+<style>
+  @font-face {
+    font-family: "Plex Sans";
+    src: local("IBM Plex Sans");
+  }
+
+  :root {
+    --bg: #0b0e14;
+    --bg-raised: #12161f;
+    --bg-row: #10141c;
+    --border: #232838;
+    --border-soft: #1a1e2b;
+    --text: #e8ebf2;
+    --text-dim: #9aa3b8;
+    --text-faint: #5c6478;
+    --accent: #7c8cf0;
+    --accent-dim: #4a52a8;
+    --good: #5cc8a0;
+    --good-bg: rgba(92, 200, 160, 0.12);
+    --ruled: #6b7280;
+    --ruled-bg: rgba(107, 114, 128, 0.10);
+    --warn: #e0b04d;
+    --warn-bg: rgba(224, 176, 77, 0.12);
+    --drop: #e0785a;
+    --spike: #5aa9e0;
+    --shadow: 0 1px 2px rgba(0,0,0,0.4);
+  }
+
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f5f6f9;
+      --bg-raised: #ffffff;
+      --bg-row: #ffffff;
+      --border: #dde1ea;
+      --border-soft: #e7eaf0;
+      --text: #1a1d29;
+      --text-dim: #5b6178;
+      --text-faint: #8a90a4;
+      --accent: #4a52c9;
+      --accent-dim: #c7cbf5;
+      --good: #1f8f68;
+      --good-bg: rgba(31, 143, 104, 0.10);
+      --ruled: #6b7280;
+      --ruled-bg: rgba(107, 114, 128, 0.08);
+      --warn: #a8760a;
+      --warn-bg: rgba(168, 118, 10, 0.10);
+      --drop: #c0512f;
+      --spike: #2c72ad;
+      --shadow: 0 1px 2px rgba(20,20,40,0.06);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg: #0b0e14;
+    --bg-raised: #12161f;
+    --bg-row: #10141c;
+    --border: #232838;
+    --border-soft: #1a1e2b;
+    --text: #e8ebf2;
+    --text-dim: #9aa3b8;
+    --text-faint: #5c6478;
+    --accent: #7c8cf0;
+    --accent-dim: #4a52a8;
+    --good: #5cc8a0;
+    --good-bg: rgba(92, 200, 160, 0.12);
+    --ruled: #6b7280;
+    --ruled-bg: rgba(107, 114, 128, 0.10);
+    --warn: #e0b04d;
+    --warn-bg: rgba(224, 176, 77, 0.12);
+    --drop: #e0785a;
+    --spike: #5aa9e0;
+    --shadow: 0 1px 2px rgba(0,0,0,0.4);
+  }
+
+  :root[data-theme="light"] {
+    --bg: #f5f6f9;
+    --bg-raised: #ffffff;
+    --bg-row: #ffffff;
+    --border: #dde1ea;
+    --border-soft: #e7eaf0;
+    --text: #1a1d29;
+    --text-dim: #5b6178;
+    --text-faint: #8a90a4;
+    --accent: #4a52c9;
+    --accent-dim: #c7cbf5;
+    --good: #1f8f68;
+    --good-bg: rgba(31, 143, 104, 0.10);
+    --ruled: #6b7280;
+    --ruled-bg: rgba(107, 114, 128, 0.08);
+    --warn: #a8760a;
+    --warn-bg: rgba(168, 118, 10, 0.10);
+    --drop: #c0512f;
+    --spike: #2c72ad;
+    --shadow: 0 1px 2px rgba(20,20,40,0.06);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Plex Sans", "IBM Plex Sans", -apple-system, "Segoe UI", sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .mono {
+    font-family: "IBM Plex Mono", "SF Mono", ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .shell {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+
+  header.page {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 28px;
+    padding-bottom: 22px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .brand-mark {
+    flex-shrink: 0;
+    color: var(--accent);
+  }
+
+  .brand h1 {
+    font-size: 27px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--text);
+    margin: 0;
+    white-space: nowrap;
+  }
+
+  .brand-by {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.15;
+    margin-left: 2px;
+    padding-left: 12px;
+    border-left: 1px solid var(--border);
+  }
+
+  .brand-by span {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+  }
+
+  .brand-by span.who {
+    color: var(--text-dim);
+    font-size: 11px;
+  }
+
+  header.page .meta {
+    font-size: 12px;
+    color: var(--text-faint);
+    text-align: right;
+  }
+
+  header.page .meta .count {
+    color: var(--text-dim);
+    font-weight: 500;
+  }
+
+  .live-tag {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+    margin-top: 2px;
+  }
+
+  .live-tag .pulse {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--good);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--good) 60%, transparent);
+    animation: pulse-ring 2s ease-out infinite;
+  }
+
+  @keyframes pulse-ring {
+    0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--good) 45%, transparent); }
+    70% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--good) 0%, transparent); }
+    100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--good) 0%, transparent); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .live-tag .pulse { animation: none; }
+  }
+
+  .perf-strip {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--border-soft);
+    border: 1px solid var(--border-soft);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 24px;
+  }
+
+  .perf-tile {
+    background: var(--bg-raised);
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .perf-tile .label {
+    font-size: 10.5px;
+    font-weight: 600;
+    color: var(--text-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .perf-tile .value {
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--text);
+    letter-spacing: -0.01em;
+  }
+
+  .perf-tile .value .unit {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-dim);
+    margin-left: 3px;
+  }
+
+  .perf-tile.hero .value { color: var(--accent); }
+
+  .perf-tile .sub {
+    font-size: 11px;
+    color: var(--text-faint);
+  }
+
+  @media (max-width: 640px) {
+    .perf-strip { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  .toolbar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+
+  .toolbar button {
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-dim);
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 12px;
+    cursor: pointer;
+    transition: color .15s, border-color .15s, background .15s;
+  }
+
+  .toolbar button:hover {
+    color: var(--text);
+    border-color: var(--accent-dim);
+  }
+
+  .toolbar button.active {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 10%, var(--bg-raised));
+  }
+
+  .feed {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .row {
+    background: var(--bg-row);
+    border: 1px solid var(--border-soft);
+    border-radius: 10px;
+    overflow: hidden;
+    transition: border-color .15s;
+  }
+
+  .row:hover {
+    border-color: var(--border);
+  }
+
+  .row {
+    border-left: 3px solid transparent;
+  }
+
+  .row[data-flag="warn"] { border-left-color: var(--warn); }
+  .row[data-flag="bad"] { border-left-color: var(--drop); }
+
+  /* Tier: how much this incident deserves attention, from confidence x
+     deviation size — separate from good/bad sentiment. */
+  .row[data-tier="urgent"] {
+    border-left-width: 5px;
+    background: color-mix(in srgb, var(--drop) 5%, var(--bg-row));
+  }
+  .row[data-tier="urgent"][data-dir="spike"] {
+    background: color-mix(in srgb, var(--good) 5%, var(--bg-row));
+  }
+  .row[data-tier="urgent"] .headline-text { font-size: 15.5px; }
+  .row[data-tier="urgent"] .metric-name { font-weight: 700; }
+  .row[data-tier="urgent"] .verdict-tag {
+    font-size: 11px;
+    padding: 3px 10px;
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--drop) 35%, transparent);
+  }
+  .row[data-tier="urgent"][data-dir="spike"] .verdict-tag {
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--good) 35%, transparent);
+  }
+  .row[data-tier="urgent"] .sev-dot {
+    width: 9px; height: 9px;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--drop) 20%, transparent);
+  }
+  .row[data-tier="urgent"][data-dir="spike"] .sev-dot {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--good) 20%, transparent);
+  }
+
+  .row[data-tier="low"] {
+    opacity: 0.68;
+  }
+  .row[data-tier="low"] .row-head { padding: 9px 16px; }
+  .row[data-tier="low"] .headline-text { font-size: 13px; }
+  .row[data-tier="low"]:hover { opacity: 1; }
+
+  .group-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin: 22px 2px 8px;
+  }
+
+  .group-header:first-child { margin-top: 0; }
+
+  .group-header .dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+  }
+
+  .group-header.tier-urgent .dot { background: var(--drop); }
+  .group-header.tier-normal .dot { background: var(--text-faint); }
+  .group-header.tier-low .dot { background: var(--ruled); }
+
+  .group-header .n {
+    color: var(--text-dim);
+    font-weight: 500;
+    text-transform: none;
+    letter-spacing: normal;
+  }
+
+  .row-head {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 13px 16px;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .row-head:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+
+  .headline {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+
+  .sev-dot {
+    flex-shrink: 0;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-top: 5px;
+  }
+
+  .sev-dot.good { background: var(--good); }
+  .sev-dot.bad { background: var(--drop); }
+
+  .headline-text {
+    flex: 1;
+    min-width: 0;
+    font-size: 14.5px;
+    color: var(--text);
+    line-height: 1.4;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .headline-text .metric-name {
+    font-weight: 600;
+  }
+
+  .headline-text .delta {
+    font-weight: 700;
+  }
+
+  .headline-text .delta.bad { color: var(--drop); }
+  .headline-text .delta.good { color: var(--good); }
+
+  .headline-text .cause {
+    color: var(--text-dim);
+  }
+
+  .headline-text .cause strong {
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  .verdict-tag {
+    flex-shrink: 0;
+    font-size: 10.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 2px 8px;
+    border-radius: 5px;
+    white-space: nowrap;
+  }
+
+  .verdict-tag.bad { color: var(--drop); background: color-mix(in srgb, var(--drop) 14%, transparent); }
+  .verdict-tag.good { color: var(--good); background: var(--good-bg); }
+
+  .chevron {
+    flex-shrink: 0;
+    color: var(--text-faint);
+    transition: transform .18s ease;
+    margin-top: 4px;
+  }
+
+  .row.open .chevron { transform: rotate(90deg); }
+
+  .meta-line {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding-left: 18px;
+    font-size: 11.5px;
+    color: var(--text-faint);
+    flex-wrap: wrap;
+  }
+
+  .meta-line .sep { color: var(--border); }
+
+  .meta-line .conf-word { color: var(--text-dim); }
+  .meta-line .conf-word.conf-high { color: var(--good); }
+  .meta-line .conf-word.conf-medium { color: var(--warn); }
+  .meta-line .conf-word.conf-low { color: var(--ruled); }
+
+  .meta-line .flag-note {
+    color: var(--warn);
+    font-weight: 600;
+  }
+
+  .meta-line .flag-note.bad { color: var(--drop); }
+
+  .meta-line .detector-name {
+    text-decoration: underline dotted var(--text-faint);
+    text-underline-offset: 2px;
+    cursor: help;
+  }
+
+  .row-body {
+    display: none;
+    padding: 4px 16px 20px;
+    border-top: 1px solid var(--border-soft);
+  }
+
+  .row.open .row-body { display: block; }
+
+  .narrative {
+    color: var(--text-dim);
+    font-size: 13.5px;
+    line-height: 1.6;
+    margin: 16px 0 20px;
+    max-width: 62ch;
+  }
+
+  .section-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin: 0 0 10px;
+  }
+
+  .found-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 22px;
+  }
+
+  .found-item {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 12px 14px;
+    background: var(--bg-raised);
+    border: 1px solid var(--border-soft);
+    border-radius: 8px;
+  }
+
+  .found-item .sentence {
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.5;
+  }
+
+  .found-item .sentence strong {
+    font-weight: 600;
+  }
+
+  .found-item .sentence .pct-inline {
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  .bar-track {
+    position: relative;
+    height: 8px;
+    background: var(--border-soft);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .bar-fill {
+    position: absolute;
+    inset: 0;
+    width: 0%;
+    background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 55%, transparent), var(--accent));
+    border-radius: 4px;
+    transition: width .5s cubic-bezier(.2,.8,.2,1);
+  }
+
+  .found-item .vs {
+    font-size: 11px;
+    color: var(--text-faint);
+  }
+
+  .found-item .vs .mono { color: var(--text-dim); }
+
+  .ruled-list {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  .ruled-item {
+    display: flex;
+    gap: 8px;
+    font-size: 12.5px;
+    color: var(--text-faint);
+  }
+
+  .ruled-item .tag {
+    flex-shrink: 0;
+    color: var(--text-dim);
+    font-weight: 500;
+  }
+
+  .footer-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 20px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border-soft);
+    font-size: 11.5px;
+    color: var(--text-faint);
+  }
+
+  .footer-row a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+
+  .footer-row a:hover { text-decoration: underline; }
+
+  .empty {
+    padding: 60px 0;
+    text-align: center;
+    color: var(--text-faint);
+    font-size: 13px;
+  }
+
+  @media (max-width: 640px) {
+    .headline-text {
+      white-space: normal;
+      overflow: visible;
+      text-overflow: initial;
+    }
+    .verdict-tag { order: -1; }
+  }
+</style>
+
+<div class="shell">
+  <header class="page">
+    <div class="brand">
+      <svg class="brand-mark" width="26" height="26" viewBox="0 0 26 26" fill="none">
+        <circle cx="13" cy="13" r="2.4" fill="currentColor"/>
+        <path d="M13 10.6 13 3M13 15.4 13 23M10.6 13 3 13M15.4 13 23 13M11.3 11.3 5.8 5.8M14.7 11.3 20.2 5.8M11.3 14.7 5.8 20.2M14.7 14.7 20.2 20.2"
+          stroke="currentColor" stroke-width="1.6" stroke-linecap="round" opacity="0.85"/>
+      </svg>
+      <h1>RCA Agent</h1>
+      <div class="brand-by">
+        <span>By</span>
+        <span class="who">FastLane</span>
+      </div>
+    </div>
+    <div class="meta">
+      <div class="count" id="count">Loading…</div>
+      <div class="live-tag"><span class="pulse"></span> Monitoring ad delivery metrics</div>
+    </div>
+  </header>
+
+  <div class="perf-strip" id="perfStrip"></div>
+
+  <div class="toolbar" id="toolbar">
+    <button class="active" data-filter="all">All</button>
+    <button data-filter="high">High confidence</button>
+    <button data-filter="drop">Drops</button>
+    <button data-filter="spike">Spikes</button>
+  </div>
+
+  <div class="feed" id="feed"></div>
+  <div class="empty" id="empty" style="display:none">No incidents match this filter.</div>
+</div>
+
+<script>
+let DATA = [];
+let currentFilter = "all";
+
+function fmt(n) {
+  if (n === null || n === undefined) return "—";
+  const abs = Math.abs(n);
+  if (abs >= 1000) return n.toLocaleString(undefined, { maximumFractionDigits: 0 });
+  if (abs >= 1) return n.toFixed(2);
+  return n.toFixed(4);
+}
+
+function relTime(iso) {
+  const d = new Date(iso);
+  const diffH = Math.round((Date.now() - d.getTime()) / 3600000);
+  if (diffH < 1) return "just now";
+  if (diffH < 24) return `${diffH}h ago`;
+  return `${Math.round(diffH / 24)}d ago`;
+}
+
+function fmtWindow(startIso, endIso) {
+  const s = new Date(startIso), e = new Date(endIso);
+  const pad = n => String(n).padStart(2, "0");
+  const date = `${s.getUTCFullYear()}-${pad(s.getUTCMonth() + 1)}-${pad(s.getUTCDate())}`;
+  const t1 = `${pad(s.getUTCHours())}:${pad(s.getUTCMinutes())}`;
+  const t2 = `${pad(e.getUTCHours())}:${pad(e.getUTCMinutes())}`;
+  return `${date} ${t1} – ${t2} UTC`;
+}
+
+// build_findings() already writes a human-readable detector string, e.g.
+// "trailing z-score vs weekday baseline (z=-162.85, trailing 3wk,
+// threshold 2.0)" — split off the parenthetical detail for the compact
+// meta-line and keep the full string as a hover tooltip.
+function detectorLabel(full) {
+  const idx = full.indexOf(" (");
+  return idx > -1 ? full.slice(0, idx) : full;
+}
+
+function friendlyDim(dim) {
+  return dim.replace(/_/g, " ");
+}
+
+function friendlySeg(dim, seg) {
+  if (dim === "os_version" || dim === "device_model") return seg;
+  return `${friendlyDim(dim)} "${seg}"`;
+}
+
+// How much attention this incident deserves: a business person should be
+// able to tell "surely go check this" from "probably noise" without reading
+// a word — confidence alone or deviation size alone isn't enough (a huge
+// drop the system isn't sure about is NOT a confident finding, and a
+// high-confidence 4% wobble isn't worth interrupting anyone for).
+function tier(r) {
+  const absDev = Math.abs(r.deviation_pct);
+  if (r.confidence === "high" && absDev >= 25) return "urgent";
+  if (r.confidence === "low" && absDev < 15) return "low";
+  return "normal";
+}
+
+const TIER_META = {
+  urgent: { label: "Confirm and act", order: 0 },
+  normal: { label: "Worth a look", order: 1 },
+  low: { label: "Low priority — likely noise", order: 2 },
+};
+
+function rowTemplate(r) {
+  const dir = r.deviation_pct < 0 ? "drop" : "spike";
+  // For these ad-metrics (revenue, ecpm, ctr, fill_rate, requests) a rise is
+  // good and a fall is bad — the color has to encode business impact, not
+  // just arithmetic direction.
+  const sentiment = dir === "drop" ? "bad" : "good";
+  const arrow = dir === "drop" ? "↓" : "↑";
+  const detLabel = detectorLabel(r.detector);
+  const rowTier = tier(r);
+  const flagged = r.status !== "ok";
+  const flagClass = r.status === "failed" ? "bad" : (flagged ? "warn" : "");
+
+  const foundSorted = [...r.found].sort((a, b) => b.contribution_pct - a.contribution_pct);
+  const topCause = foundSorted.find(s => s.contribution_pct >= 50);
+
+  // Every claim gets its number attached in the same clause — no hedge words
+  // like "mostly"/"probably" standing in for a number we already computed.
+  const foundHtml = foundSorted.length ? foundSorted.map(s => `
+    <div class="found-item">
+      <p class="sentence"><strong>${friendlySeg(s.dimension, s.segment)}</strong>
+        accounts for <span class="pct-inline mono">${s.contribution_pct.toFixed(1)}%</span> of the ${dir}
+        ${s.contribution_pct >= 50 ? "&mdash; isolated as the cause" : "&mdash; a contributing factor, not the primary cause"}.</p>
+      <div class="bar-track"><div class="bar-fill" data-pct="${Math.min(s.contribution_pct,100)}"></div></div>
+      <div class="vs">measured <span class="mono">${fmt(s.actual)}</span> against a baseline of <span class="mono">${fmt(s.baseline)}</span></div>
+    </div>
+  `).join("") : `<div class="ruled-item" style="margin-bottom:22px"><span class="tag">—</span> no segment accounted for a majority of the ${dir}</div>`;
+
+  const ruledHtml = r.ruled_out.length ? r.ruled_out.map(x => `
+    <div class="ruled-item">
+      <span class="tag">${x.dimension}${x.segment ? "=" + x.segment : ""}</span> ${x.note}
+    </div>
+  `).join("") : `<div class="ruled-item"><span class="tag">—</span> none recorded</div>`;
+
+  const corrob = r.corroboration
+    ? (r.corroboration.corroborated ? "double-checked by a second, independent detector" : "not confirmed by a second detector — treat with caution")
+    : "no second detector available to double-check this";
+
+  const statusNote = r.status === "failed"
+    ? `<span class="flag-note bad">this run failed partway — numbers below may be incomplete</span>`
+    : r.status === "low_confidence"
+      ? `<span class="flag-note">flagged low-confidence — a claimed number couldn't be verified</span>`
+      : "";
+
+  const costText = r.cost_usd != null ? `$${r.cost_usd.toFixed(4)} to diagnose` : "cost pending";
+
+  // Headline cause clause always carries the number ("accounts for 96.5%"),
+  // never a qualitative hedge — the plain-language claim IS the number.
+  const causeClause = topCause
+    ? `<span class="cause"> &mdash; <strong>${friendlySeg(topCause.dimension, topCause.segment)}</strong> accounts for <span class="mono">${topCause.contribution_pct.toFixed(1)}%</span></span>`
+    : `<span class="cause"> &mdash; no single dominant segment isolated</span>`;
+
+  const tagText = rowTier === "urgent"
+    ? (sentiment === "bad" ? "Confirm and act" : "Strong result — confirm")
+    : rowTier === "low"
+      ? "Likely noise"
+      : (sentiment === "bad" ? "Worth a look" : "Good news");
+
+  return `
+    <div class="row" data-confidence="${r.confidence}" data-dir="${dir}" data-flag="${flagClass}" data-tier="${rowTier}">
+      <div class="row-head" tabindex="0" role="button" aria-expanded="false">
+        <div class="headline">
+          <span class="sev-dot ${sentiment}"></span>
+          <span class="headline-text">
+            <span class="metric-name">${r.metric.replace("_"," ")}</span>
+            ${dir === "drop" ? "dropped" : "spiked"}
+            <span class="delta mono ${sentiment}">${arrow} ${Math.abs(r.deviation_pct).toFixed(1)}%</span>
+            ${causeClause}
+          </span>
+          <span class="verdict-tag ${sentiment}">${tagText}</span>
+          <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="meta-line mono">
+          <span>${relTime(r.created_at)}</span>
+          <span class="sep">·</span>
+          <span class="conf-word conf-${r.confidence}">${r.confidence} confidence</span>
+          <span class="sep">·</span>
+          <span class="detector-name" title="${r.detector}">found via ${detLabel}</span>
+          ${statusNote ? `<span class="sep">·</span>${statusNote}` : ""}
+        </div>
+      </div>
+      <div class="row-body">
+        <p class="section-label">1 · Detected</p>
+        <p class="narrative">${r.metric.replace("_"," ")} measured <strong class="mono">${fmt(r.actual)}</strong> against an expected baseline of
+          <strong class="mono">${fmt(r.baseline)}</strong> for this window &mdash; a
+          <strong class="mono">${Math.abs(r.deviation_pct).toFixed(1)}%</strong> ${dir}, flagged by ${detLabel}.</p>
+        <p class="section-label">2 · Drilled down to</p>
+        <div class="found-list">${foundHtml}</div>
+        <p class="section-label">3 · Diagnosis</p>
+        <p class="narrative">${r.narrative}</p>
+        <p class="section-label">4 · Checked and ruled out</p>
+        <div class="ruled-list">${ruledHtml}</div>
+        <div class="footer-row">
+          <span class="mono">${fmtWindow(r.window_start, r.window_end)} · ${corrob} · ${costText}</span>
+          ${r.trace_url ? `<a href="${r.trace_url}" target="_blank" rel="noopener">trace ↗</a>` : `<span>no trace</span>`}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+const feed = document.getElementById("feed");
+const empty = document.getElementById("empty");
+const countEl = document.getElementById("count");
+const perfStrip = document.getElementById("perfStrip");
+
+function renderPerfStrip(rows) {
+  const urgentCount = rows.filter(r => tier(r) === "urgent").length;
+  const priced = rows.filter(r => r.cost_usd != null);
+  const totalCost = priced.reduce((s, r) => s + r.cost_usd, 0);
+  const avgCost = priced.length ? totalCost / priced.length : null;
+  const totalTokens = rows.reduce(
+    (s, r) => s + (r.input_tokens || 0) + (r.output_tokens || 0), 0);
+
+  perfStrip.innerHTML = `
+    <div class="perf-tile">
+      <span class="label">Incidents</span>
+      <span class="value mono">${rows.length}</span>
+      <span class="sub">in this view</span>
+    </div>
+    <div class="perf-tile">
+      <span class="label">Confirm and act</span>
+      <span class="value mono">${urgentCount}</span>
+      <span class="sub">high confidence, large deviation</span>
+    </div>
+    <div class="perf-tile hero">
+      <span class="label">Cost to diagnose</span>
+      <span class="value mono">${avgCost != null ? "$" + avgCost.toFixed(4) : "—"}<span class="unit">avg</span></span>
+      <span class="sub">${priced.length ? `$${totalCost.toFixed(4)} total · one LLM call each` : "no priced runs yet"}</span>
+    </div>
+    <div class="perf-tile">
+      <span class="label">Tokens processed</span>
+      <span class="value mono">${totalTokens.toLocaleString()}</span>
+      <span class="sub">Haiku, one call per incident</span>
+    </div>
+  `;
+}
+
+function render(filter) {
+  currentFilter = filter;
+  const rows = DATA.filter(r => {
+    if (filter === "all") return true;
+    if (filter === "high") return r.confidence === "high";
+    if (filter === "drop") return r.deviation_pct < 0;
+    if (filter === "spike") return r.deviation_pct >= 0;
+    return true;
+  });
+
+  const buckets = { urgent: [], normal: [], low: [] };
+  rows.forEach(r => buckets[tier(r)].push(r));
+
+  feed.innerHTML = ["urgent", "normal", "low"].map(t => {
+    if (!buckets[t].length) return "";
+    const meta = TIER_META[t];
+    return `
+      <div class="group-header tier-${t}">
+        <span class="dot"></span> ${meta.label} <span class="n">(${buckets[t].length})</span>
+      </div>
+      ${buckets[t].map(rowTemplate).join("")}
+    `;
+  }).join("");
+
+  empty.style.display = rows.length ? "none" : "block";
+  countEl.textContent = `${rows.length} incident${rows.length === 1 ? "" : "s"}`;
+  renderPerfStrip(rows);
+
+  feed.querySelectorAll(".bar-fill").forEach(el => {
+    const pct = el.getAttribute("data-pct");
+    requestAnimationFrame(() => { el.style.width = pct + "%"; });
+  });
+
+  feed.querySelectorAll(".row-head").forEach(head => {
+    const toggle = () => {
+      const row = head.closest(".row");
+      const isOpen = row.classList.toggle("open");
+      head.setAttribute("aria-expanded", String(isOpen));
+    };
+    head.addEventListener("click", toggle);
+    head.addEventListener("keydown", e => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); }
+    });
+  });
+}
+
+document.getElementById("toolbar").addEventListener("click", e => {
+  const btn = e.target.closest("button");
+  if (!btn) return;
+  document.querySelectorAll("#toolbar button").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  render(btn.dataset.filter);
+});
+
+// Flattens the API's nested NarratorRCA (findings.metric, findings.found[],
+// ...) into the shape rowTemplate()/tier() already work with — everything
+// else in this file only ever sees the flat shape.
+function transform(rca) {
+  const f = rca.findings;
+  return {
+    rca_id: rca.rca_id, alert_id: rca.alert_id, created_at: rca.created_at,
+    metric: f.metric, window_start: f.window_start, window_end: f.window_end,
+    baseline: f.baseline, actual: f.actual, deviation_pct: f.deviation_pct,
+    detector: f.detector, found: f.found, ruled_out: f.ruled_out,
+    corroboration: f.corroboration,
+    narrative: rca.narrative, confidence: rca.confidence, status: rca.status,
+    trace_url: rca.trace_url,
+    input_tokens: rca.input_tokens, output_tokens: rca.output_tokens,
+    cost_usd: rca.cost_usd,
+  };
+}
+
+async function load() {
+  countEl.textContent = "Loading…";
+  try {
+    const res = await fetch("/narrations?limit=100");
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const raw = await res.json();
+    DATA = raw.map(transform);
+    render(currentFilter);
+  } catch (e) {
+    feed.innerHTML = "";
+    perfStrip.innerHTML = "";
+    empty.textContent = `Couldn't load incidents from /narrations: ${e.message}`;
+    empty.style.display = "block";
+    countEl.textContent = "—";
+  }
+}
+
+load();
+</script>
