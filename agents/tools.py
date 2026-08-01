@@ -5,8 +5,10 @@ Six @tool functions — the ONLY way agents touch ClickHouse. Rules:
 - Agents never write SQL. They pick a template; values are bound
   server-side ({name:Type}); the dimension name is validated against an
   allowlist and substituted from OUR mapping, never from agent text.
-- Every result is compact JSON: top-20 rows max, executed SQL included
-  in a "sql" field so each claim is reproducible.
+- Every result is compact JSON: top-10 rows max. The executed SQL is
+  captured for reproducibility (evidence[]/Langfuse trace) via LangChain's
+  response_format="content_and_artifact" — attached to the ToolMessage
+  separately, never resent as part of the LLM-facing text.
 - Nothing raises — errors come back as {"error": ...} so the agent can
   recover.
 
@@ -111,7 +113,7 @@ FROM (
 )
 GROUP BY segment
 ORDER BY abs(maxIf(__PROXY__, k = 0) - quantileExactInclusiveIf(0.5)(__PROXY__, k > 0)) DESC
-LIMIT 20
+LIMIT 10
 """
 
 # ------------------------------------------------------------ helpers --
@@ -147,14 +149,25 @@ def _sums_by_k(ws: str, we: str, extra_sql: str = "",
     return {r["k"]: r for r in rows}, sql.strip()
 
 
-def _ok(payload: dict, sql: str, params: dict) -> str:
-    payload["sql"] = sql
-    payload["sql_params"] = {k: str(v) for k, v in params.items()}
-    return json.dumps(payload, default=str)
+def _ok(payload: dict, sql: str, params: dict) -> tuple[str, dict]:
+    """Returns (compact_content, full_artifact). The agent only ever reads
+    `compact_content` — no sql/sql_params — since that text gets resent in
+    full on every subsequent turn of the agent's own tool-calling loop
+    (standard chat-API behavior) and the query text itself does nothing
+    for the model's reasoning. `full_artifact` (with sql/sql_params) is
+    attached to the ToolMessage separately via LangChain's
+    response_format="content_and_artifact" — it's what lands in `evidence`
+    for guardrail matching and reproducibility, and it's what Langfuse
+    traces, without ever being paid for as LLM input tokens."""
+    compact = json.dumps(payload, default=str)
+    full = {**payload, "sql": sql,
+            "sql_params": {k: str(v) for k, v in params.items()}}
+    return compact, full
 
 
-def _err(msg: str) -> str:
-    return json.dumps({"error": msg})
+def _err(msg: str) -> tuple[str, dict]:
+    err = {"error": msg}
+    return json.dumps(err), err
 
 
 def _guard(fn):
@@ -171,9 +184,9 @@ def _guard(fn):
 # -------------------------------------------------------------- tools --
 
 
-@tool
+@tool(response_format="content_and_artifact")
 @_guard
-def metric_overview(window_start: str, window_end: str) -> str:
+def metric_overview(window_start: str, window_end: str) -> tuple[str, dict]:
     """Compare ALL five metrics (revenue, requests, fill_rate, ctr, ecpm)
     in the window against the like-for-like baseline (same weekday+hours,
     trailing 4 weeks, median). Returns pct deviation and z-score per
@@ -203,9 +216,9 @@ def metric_overview(window_start: str, window_end: str) -> str:
                sql, {"ws": window_start, "we": window_end})
 
 
-@tool
+@tool(response_format="content_and_artifact")
 @_guard
-def factor_decompose(window_start: str, window_end: str) -> str:
+def factor_decompose(window_start: str, window_end: str) -> tuple[str, dict]:
     """Split a revenue change into its identity factors:
     revenue = requests × fill_rate × render_rate × ecpm/1000.
     Log-ratio decomposition vs the baseline — each factor's share of the
@@ -245,7 +258,7 @@ def factor_decompose(window_start: str, window_end: str) -> str:
 
 def _contribution(dimension: str, window_start: str, window_end: str,
                   metric: str, extra_sql: str = "",
-                  extra_params: dict | None = None) -> str:
+                  extra_params: dict | None = None) -> tuple[str, dict]:
     if dimension not in DIMENSIONS:
         return _err(f"unknown dimension {dimension!r}, use one of "
                     f"{sorted(DIMENSIONS)}")
@@ -279,23 +292,23 @@ def _contribution(dimension: str, window_start: str, window_end: str,
                sql, params)
 
 
-@tool
+@tool(response_format="content_and_artifact")
 @_guard
 def contribution_by_dimension(dimension: str, window_start: str,
-                              window_end: str, metric: str = "revenue") -> str:
+                              window_end: str, metric: str = "revenue") -> tuple[str, dict]:
     """Rank segments of ONE dimension by contribution to the metric's
     change vs baseline. Call factor_decompose FIRST to know which metric
     to pass. dimension: one of region, country, device_model, os_version,
     app_category, publisher_tier, ad_format, vertical, campaign_type.
-    Top 20 segments, ranked by absolute delta."""
+    Top 10 segments, ranked by absolute delta."""
     return _contribution(dimension, window_start, window_end, metric)
 
 
-@tool
+@tool(response_format="content_and_artifact")
 @_guard
 def drilldown_filtered(dimension: str, parent_dimension: str,
                        parent_value: str, window_start: str,
-                       window_end: str, metric: str = "revenue") -> str:
+                       window_end: str, metric: str = "revenue") -> tuple[str, dict]:
     """Second-level drill-down: contribution_by_dimension for `dimension`
     but only inside rows where parent_dimension = parent_value (e.g. find
     which app drives the drop inside ad_format=video). Use after
@@ -308,10 +321,10 @@ def drilldown_filtered(dimension: str, parent_dimension: str,
                          extra_sql=extra, extra_params={"pv": parent_value})
 
 
-@tool
+@tool(response_format="content_and_artifact")
 @_guard
 def seasonality_check(window_start: str, window_end: str,
-                      metric: str = "revenue") -> str:
+                      metric: str = "revenue") -> tuple[str, dict]:
     """Is the observed value just seasonality? Shows the metric for the
     SAME weekday+hours in each of the trailing 4 weeks individually, and
     whether the observed value sits inside their min–max range. If it
@@ -335,11 +348,11 @@ def seasonality_check(window_start: str, window_end: str,
     }, sql, {"ws": window_start, "we": window_end})
 
 
-@tool
+@tool(response_format="content_and_artifact")
 @_guard
 def verify_claim(metric: str, window_start: str, window_end: str,
                  dimension: Optional[str] = None,
-                 value: Optional[str] = None) -> str:
+                 value: Optional[str] = None) -> tuple[str, dict]:
     """Recompute ONE metric for ONE exact segment and window, vs its
     baseline. Use to re-verify a specific claim (e.g. metric='fill_rate',
     dimension='ad_format', value='video'). Omit dimension/value to check

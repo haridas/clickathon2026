@@ -30,7 +30,7 @@ from typing import Literal
 from dotenv import load_dotenv
 from langchain.agents import create_agent
 from langchain.chat_models import init_chat_model
-from langchain_core.messages import ToolMessage
+from langchain_core.messages import SystemMessage, ToolMessage
 from pydantic import BaseModel, Field
 
 from agents import tools as T
@@ -58,27 +58,45 @@ def _fmt(dt) -> str:
 
 def _harvest(result, evidence: list[dict]) -> str:
     """Append this stage's tool outputs to the shared evidence list and
-    return the agent's final text answer."""
+    return the agent's final text answer.
+
+    Tools return (content, artifact) via response_format="content_and_
+    artifact": `content` is the compact string the LLM actually reads (and
+    which gets resent on every subsequent turn of the loop); `artifact`
+    carries the full payload including sql/sql_params. We store the full
+    artifact in `evidence` — that's what the guardrail matches claims
+    against and what's available for reproducibility — without it ever
+    having been paid for as LLM input tokens."""
     tool_calls = {}  # tool_call_id -> (name, args)
     for m in result["messages"]:
         for tc in getattr(m, "tool_calls", None) or []:
             tool_calls[tc["id"]] = (tc["name"], tc["args"])
         if isinstance(m, ToolMessage):
             name, args = tool_calls.get(m.tool_call_id, (m.name, {}))
-            evidence.append({
-                "id": f"t{len(evidence) + 1}",
-                "tool": name,
-                "args": args,
-                "output": m.content if isinstance(m.content, str) else str(m.content),
-            })
+            artifact = getattr(m, "artifact", None)
+            output = (json.dumps(artifact, default=str) if isinstance(artifact, dict)
+                      else m.content if isinstance(m.content, str) else str(m.content))
+            evidence.append({"id": f"t{len(evidence) + 1}", "tool": name,
+                             "args": args, "output": output})
     final = result["messages"][-1]
     return final.text if isinstance(final.text, str) else str(final.content)
 
 
 def _evidence_block(evidence: list[dict], max_chars: int = 1800) -> str:
+    """Cross-stage handoff text (Investigator -> Skeptic -> Writer). Drops
+    sql/sql_params — later stages need the numbers, never the query text —
+    keeping this handoff compact even though `evidence[]` itself (used by
+    the guardrail) still holds the full artifact."""
     parts = []
     for e in evidence:
         out = e["output"]
+        try:
+            d = json.loads(out)
+            d.pop("sql", None)
+            d.pop("sql_params", None)
+            out = json.dumps(d, default=str)
+        except (json.JSONDecodeError, TypeError):
+            pass
         if len(out) > max_chars:
             out = out[:max_chars] + "...[truncated]"
         parts.append(f'[{e["id"]}] {e["tool"]}({json.dumps(e["args"])}) -> {out}')
@@ -210,8 +228,18 @@ def run_rca(alert: Alert) -> RCA:
         )
 
     def stage(name: str, model_kind: str, tools: list, prompt: str, task: str) -> str:
+        # cache_control on the system prompt: within one stage's own
+        # multi-turn tool loop, the (system + tool schemas) prefix repeats
+        # unchanged on every turn — caching lets Anthropic serve those
+        # repeats at ~10% of input price instead of full price. Below the
+        # per-model minimum (512-4096 tokens depending on model) this is a
+        # silent no-op, not an error — see CONTEXT.md for what we measured.
+        sys_msg = SystemMessage(content=[
+            {"type": "text", "text": prompt,
+             "cache_control": {"type": "ephemeral"}},
+        ])
         agent = create_agent(_model(model_kind), tools=tools,
-                             system_prompt=prompt, name=name)
+                             system_prompt=sys_msg, name=name)
         result = agent.invoke(
             {"messages": [{"role": "user", "content": task}]},
             {"callbacks": callbacks, "recursion_limit": RECURSION_LIMIT,
@@ -231,8 +259,12 @@ def run_rca(alert: Alert) -> RCA:
             INVESTIGATOR_PROMPT,
             f"{alert_text}\n\nTriage said:\n{triage}",
         )
+        # Skeptic's job is mechanical re-verification (rerun two tools,
+        # compare numbers) rather than open-ended reasoning — FAST instead
+        # of STRONG here, ~5x cheaper per token on the model that runs
+        # longest after Investigator.
         skeptic = stage(
-            "skeptic", "STRONG", [T.seasonality_check, T.verify_claim],
+            "skeptic", "FAST", [T.seasonality_check, T.verify_claim],
             SKEPTIC_PROMPT,
             f"{alert_text}\n\nInvestigator concluded:\n{invest}\n\n"
             f"Evidence so far:\n{_evidence_block(evidence)}",
