@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS rca_results (
   segments      Array(String),
   narrative     String,
   claims        String,
-  ruled_out     String,
+  checks        String,
   confidence    LowCardinality(String),
   trace_url     String,
   status        LowCardinality(String)
@@ -58,25 +58,31 @@ def write_rca(rca: RCA) -> None:
             rca.metric, rca.window_start, rca.window_end,
             rca.factor, rca.segments, rca.narrative,
             json.dumps([c.model_dump() for c in rca.claims]),
-            json.dumps([c.model_dump() for c in rca.ruled_out]),
+            json.dumps([c.model_dump() for c in rca.checks]),
             rca.confidence, rca.trace_url, rca.status,
         ]],
         column_names=[
             "rca_id", "alert_id", "created_at", "metric", "window_start",
             "window_end", "factor", "segments", "narrative", "claims",
-            "ruled_out", "confidence", "trace_url", "status",
+            "checks", "confidence", "trace_url", "status",
         ],
     )
 
 
 def append_index(rca: RCA) -> None:
-    ruled = " · ".join(c.text for c in rca.ruled_out) or "none recorded"
+    if rca.checks:
+        ledger = "\n".join(
+            f"  - [{c.verdict}] {c.check} — {c.result}" for c in rca.checks
+        )
+    else:
+        ledger = "  - none recorded"
     block = f"""
 ## RCA {rca.created_at:%Y-%m-%dT%H:%M} · {rca.metric} · alert {rca.alert_id}
 - window: {rca.window_start:%Y-%m-%d %H:%M} – {rca.window_end:%H:%M} UTC
 - root cause: {"; ".join(rca.segments) or "broad-based"} ({rca.narrative.splitlines()[0][:120]})
 - factor: {rca.factor} · confidence: {rca.confidence} · status: {rca.status}
-- ruled out: {ruled}
+- checks (what was checked, confirmed, and ruled out):
+{ledger}
 - trace: {rca.trace_url or "(no trace)"}
 - rca_id: {rca.rca_id} (full evidence in rca_results)
 """

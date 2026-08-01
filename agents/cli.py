@@ -32,6 +32,14 @@ def main() -> None:
     inv.add_argument("--direction", choices=["drop", "spike"], default="drop")
     inv.add_argument("--observed", type=float, default=0.0)
     inv.add_argument("--baseline", type=float, default=0.0)
+    inv.add_argument("--detection-method", dest="detection_method", default=None,
+                     help="e.g. seriesDecomposeSTL_residual, tukey, trailing_zscore "
+                          "(simulates upstream detection; omit for the dev "
+                          "significance-screen fallback)")
+    inv.add_argument("--detection-score", dest="detection_score", type=float,
+                     default=None)
+    inv.add_argument("--detection-params", dest="detection_params", default=None,
+                     help='JSON string, e.g. \'{"period": 7}\'')
     args = p.parse_args()
 
     alert = Alert(
@@ -43,6 +51,10 @@ def main() -> None:
         observed=args.observed,
         baseline=args.baseline,
         source="cli",
+        detection_method=args.detection_method,
+        detection_score=args.detection_score,
+        detection_params=(json.loads(args.detection_params)
+                          if args.detection_params else None),
     )
     rca = run_rca(alert)
     deliver(rca)

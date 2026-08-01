@@ -23,6 +23,16 @@ class Alert(BaseModel):
     baseline: float
     source: str = "hyperdx"  # or "cli", "poller"
 
+    # Upstream detection metadata (part-2 alert generation) — which
+    # deterministic ClickHouse-native function fired and its score, e.g.
+    # method="seriesDecomposeSTL_residual", score=-64954, params={"period": 7}.
+    # Schema not finalized on their side yet, so all optional: an alert
+    # without these still validates and falls back to our own significance
+    # screen (see pipeline.py::screen()).
+    detection_method: str | None = None
+    detection_score: float | None = None
+    detection_params: dict | None = None
+
     @field_validator("window_start", "window_end", mode="before")
     @classmethod
     def _epoch_ms_to_datetime(cls, v):
@@ -43,6 +53,18 @@ class Claim(BaseModel):
     tool_call_id: str    # which evidence entry it came from
 
 
+class Check(BaseModel):
+    """One entry in the 'what we checked' ledger — the bonus ask: state
+    what was checked and ruled out, not just what was found. Broader than
+    Claim: a check can be non-numeric (e.g. 'no dominant segment in
+    device_model') and can be confirmed, not just ruled out."""
+    check: str            # what was examined, e.g. "seasonality vs 4-week baseline"
+    verdict: Literal["confirmed", "ruled_out", "inconclusive"]
+    result: str            # plain-language finding
+    value: float | None = None
+    tool_call_id: str | None = None  # evidence id; None = not tool-backed (e.g. the upstream alert itself)
+
+
 class RCA(BaseModel):
     rca_id: str = Field(default_factory=lambda: f"rca_{uuid4().hex[:8]}")
     alert_id: str
@@ -53,7 +75,7 @@ class RCA(BaseModel):
     segments: list[str]           # ["region=EU", "device_model=Galaxy S23"]
     narrative: str                # <=150 words, plain language
     claims: list[Claim]
-    ruled_out: list[Claim]
+    checks: list[Check]           # what was checked, confirmed, and ruled out — and why
     confidence: Literal["high", "medium", "low"]
     trace_url: str = ""
     status: Literal["ok", "failed", "low_confidence"] = "ok"

@@ -2,23 +2,27 @@
 
 Plain Python sequence of four agents sharing an evidence list:
 
-  1. Triage       FAST   metric_overview             confirm alert, siblings
+  1. Triage       FAST   metric_overview             ack upstream detection, siblings
   2. Investigator STRONG decompose/contribution/drill names factor + segment(s)
-  3. Skeptic      STRONG seasonality/verify_claim     re-verifies, ruled-out ledger
+  3. Skeptic      STRONG seasonality/verify_claim     re-verifies, builds checks ledger
   4. Writer       FAST   no tools, structured output  narrative from evidence only
 
 Every tool output is appended to `evidence` with an id (t1, t2, ...); the
 Writer may only cite those ids, so every number in the RCA is a ClickHouse
 result by construction. One Langfuse trace spans the whole run.
 
-Cost control: before spending any LLM tokens, `_screen()` calls
-metric_overview directly (plain Python, zero tokens) and checks the
-alerted metric's z-score. If it's within normal statistical noise
-(|z| < RCA_SIGNIFICANCE_Z, default 2.0), the pipeline returns immediately
-with a short "no investigation needed" RCA — skipping Triage, Investigator,
-Skeptic, and Writer entirely for alerts that turn out not to be real
-anomalies. This is the dominant cost lever: the full pipeline costs
-roughly $0.15-0.20/run in LLM tokens; the screen costs nothing.
+Detection lives upstream now (part-2 alert generation runs deterministic
+ClickHouse-native functions — seriesDecomposeSTL residual, Tukey fences,
+trailing z-score — and only fires an alert when one of them flags a real
+deviation). When `alert.detection_method` is set, this pipeline trusts that
+call outright and always runs the full investigation — see `screen()`.
+
+Cost control (fallback path only): for alerts WITHOUT upstream detection
+metadata (CLI/dev alerts today), `_screen()` calls metric_overview directly
+(plain Python, zero tokens) and checks the alerted metric's z-score. If
+it's within normal statistical noise (|z| < RCA_SIGNIFICANCE_Z, default
+2.0), the pipeline returns immediately with a short "no investigation
+needed" RCA — skipping Triage, Investigator, Skeptic, and Writer entirely.
 
 No `temperature` anywhere — current Claude models reject the parameter.
 """
@@ -34,7 +38,7 @@ from langchain_core.messages import SystemMessage, ToolMessage
 from pydantic import BaseModel, Field
 
 from agents import tools as T
-from agents.schemas import RCA, Alert, Claim
+from agents.schemas import RCA, Alert, Check, Claim
 
 load_dotenv()
 
@@ -105,17 +109,22 @@ def _evidence_block(evidence: list[dict], max_chars: int = 1800) -> str:
 
 def _guardrail(out: "WriterOutput", evidence: list[dict]) -> list[str]:
     """Numeral guardrail: every claim's value must literally appear in the
-    evidence entry it cites. Returns the texts of claims that fail."""
+    evidence entry it cites. Returns the texts of claims that fail.
+    Checks with tool_call_id=None (e.g. the upstream-detection entry, which
+    is alert-sourced, not an LLM claim over tool evidence) are skipped."""
     by_id = {e["id"]: e["output"] for e in evidence}
     bad = []
-    for c in [*out.claims, *out.ruled_out]:
+    numbered = [*out.claims,
+                *[c for c in out.checks if c.value is not None and c.tool_call_id]]
+    for c in numbered:
         c.tool_call_id = c.tool_call_id.strip("[]")
         src = by_id.get(c.tool_call_id, "")
         v = abs(c.value)
         candidates = {f"{v:g}", f"{v:.1f}", f"{v:.2f}", f"{v:.4f}",
                       f"{v:,.1f}", f"{v:,.2f}"}
+        text = c.text if isinstance(c, Claim) else c.result
         if not any(s in src for s in candidates):
-            bad.append(c.text)
+            bad.append(text)
     return bad
 
 
@@ -125,15 +134,21 @@ class WriterOutput(BaseModel):
     segments: list[str] = Field(description='e.g. ["ad_format=video"]')
     narrative: str = Field(description="<=150 words, plain language")
     claims: list[Claim]
-    ruled_out: list[Claim]
+    checks: list[Check]
     confidence: Literal["high", "medium", "low"]
 
 
 TRIAGE_PROMPT = """You are the Triage stage of an ad-metrics RCA pipeline.
-Call metric_overview ONCE on the alert window, then summarize in <=100 words:
-(1) is the alerted metric really deviating from baseline (quote observed,
-baseline, pct, z)? (2) which sibling metrics moved with it? (3) is the alert
-worth investigating? Use only numbers from the tool output."""
+If the alert names an upstream detection method (e.g. seriesDecomposeSTL
+residual, Tukey fences, trailing z-score) and score, that deviation is
+ALREADY CONFIRMED — a deterministic function flagged it before this pipeline
+ran. Do not re-litigate whether it's real. Your job: call metric_overview
+ONCE on the alert window, then summarize in <=100 words: (1) restate what
+upstream found (method + score) alongside our own observed/baseline/pct/z
+for the same metric, (2) which sibling metrics moved with it (context for
+the Investigator), (3) anything metric_overview shows that's inconsistent
+with the upstream call, if anything. Use only numbers from the tool output
+or literally present in the alert."""
 
 INVESTIGATOR_PROMPT = """You are the Investigator stage of an ad-metrics RCA
 pipeline. Find WHY the metric moved. Method, in order:
@@ -156,21 +171,36 @@ You receive the Investigator's conclusion and the evidence so far. Your job:
 2. verify_claim to independently recompute the 1-3 most load-bearing numbers
    in the Investigator's conclusion (exact segment + window).
 Finish with: VERDICT (confirmed / partly confirmed / seasonality / refuted),
-a ruled-out list (checks that came back clean, with numbers), and a
-confidence grade high/medium/low with one-line reasoning."""
+then a per-check ledger — for EACH check you ran (seasonality, each
+verify_claim call, and any dimension the Investigator explored but that
+turned out not to matter) state: what was checked, the verdict (confirmed /
+ruled_out / inconclusive), the plain-language result, and the number(s)
+backing it. This ledger is what the final report shows as "what we checked
+and ruled out" — be complete, not just the misses. End with a confidence
+grade high/medium/low with one-line reasoning."""
 
 WRITER_PROMPT = """You are the Writer stage of an ad-metrics RCA pipeline.
 You get the alert, the three stage conclusions, and the full evidence list.
 Write the final RCA. Rules:
 - narrative: <=150 words, plain language a PM can read.
-- Every claim/ruled_out entry: text with the number, value = that number,
-  tool_call_id = the evidence id ([t1], [t2], ...) it came from. Only cite
-  numbers that literally appear in the evidence — never invent or derive.
+- claims: the numbers backing the guilty factor/segment. Each: text with
+  the number, value = that number, tool_call_id = the evidence id
+  ([t1], [t2], ...) it came from. Only cite numbers that literally appear
+  in the evidence — never invent or derive.
+- checks: the compact ledger of everything examined — from Triage's sibling
+  metrics, the Investigator's ruled-out dimensions, and the Skeptic's
+  seasonality/verify_claim re-checks. Each entry: check (what was
+  examined), verdict (confirmed / ruled_out / inconclusive), result
+  (plain-language finding), value + tool_call_id when a number backs it
+  (omit both if the check is qualitative). Include confirmed checks too,
+  not just ruled-out ones — this is the "what we looked at" record, not
+  just a miss list.
 - factor: the guilty factor per the Investigator (or "unknown").
 - segments: the guilty segment(s) like "ad_format=video" (empty if none).
 - confidence: follow the Skeptic's grade.
 - If the Skeptic found the move is seasonality, say so plainly in the
-  narrative and put the seasonality numbers in ruled_out."""
+  narrative and put the seasonality numbers in checks with verdict
+  "ruled_out" (meaning: ruled out as a real anomaly)."""
 
 
 def run_rca(alert: Alert) -> RCA:
@@ -180,6 +210,27 @@ def run_rca(alert: Alert) -> RCA:
         f"window {ws} -> {we}, observed={alert.observed:g}, "
         f"baseline={alert.baseline:g}, source={alert.source}"
     )
+    detection_check: Check | None = None
+    if alert.detection_method:
+        alert_text += (
+            f"\nUpstream detection: method={alert.detection_method}, "
+            f"score={alert.detection_score:g}"
+            if alert.detection_score is not None else
+            f"\nUpstream detection: method={alert.detection_method}"
+        )
+        if alert.detection_params:
+            alert_text += f", params={alert.detection_params}"
+        detection_check = Check(
+            check=f"upstream detection: {alert.detection_method}",
+            verdict="confirmed",
+            result=(
+                f"{alert.metric} flagged by {alert.detection_method} "
+                f"(score={alert.detection_score:g})" if alert.detection_score is not None
+                else f"{alert.metric} flagged by {alert.detection_method}"
+            ),
+            value=alert.detection_score,
+            tool_call_id=None,
+        )
 
     callbacks, trace_url, lf = [], "", None
     if os.getenv("LANGFUSE_PUBLIC_KEY"):
@@ -195,7 +246,16 @@ def run_rca(alert: Alert) -> RCA:
         Python, no agent) and check whether the alerted metric's z-score
         even clears the significance bar. If not, return a short RCA
         immediately instead of spending tokens on Triage/Investigator/
-        Skeptic/Writer. Returns None to proceed with the full pipeline."""
+        Skeptic/Writer. Returns None to proceed with the full pipeline.
+
+        Skipped entirely when the alert already carries upstream detection
+        metadata (alert.detection_method) — a deterministic ClickHouse
+        function already decided this is a real anomaly before firing the
+        alert, so re-deriving significance here would just be redundant
+        work. This gate only runs as a fallback for alerts without that
+        info (CLI/dev alerts today)."""
+        if alert.detection_method:
+            return None
         raw = T.metric_overview.invoke({"window_start": ws, "window_end": we})
         data = json.loads(raw)
         evidence.append({"id": f"t{len(evidence) + 1}", "tool": "metric_overview",
@@ -224,7 +284,13 @@ def run_rca(alert: Alert) -> RCA:
                       f"baseline {m['baseline']:g}, z={z:g}"),
                 value=z, tool_call_id=eid,
             )],
-            ruled_out=[], confidence="high",
+            checks=[Check(
+                check="significance screen vs 4-week baseline",
+                verdict="ruled_out",
+                result=f"|z|={abs(z):g} below significance threshold {SIGNIFICANCE_Z:g}",
+                value=z, tool_call_id=eid,
+            )],
+            confidence="high",
         )
 
     def stage(name: str, model_kind: str, tools: list, prompt: str, task: str) -> str:
@@ -277,12 +343,15 @@ def run_rca(alert: Alert) -> RCA:
             config={"callbacks": callbacks, "run_name": "writer"},
         )
         unverified = _guardrail(out, evidence)
+        dumped = out.model_dump()
+        if detection_check is not None:
+            dumped["checks"] = [detection_check.model_dump(), *dumped["checks"]]
         rca = RCA(
             alert_id=alert.alert_id,
             metric=alert.metric,
             window_start=alert.window_start,
             window_end=alert.window_end,
-            **out.model_dump(),
+            **dumped,
         )
         if unverified:
             rca.confidence = "low"
@@ -319,7 +388,7 @@ def run_rca(alert: Alert) -> RCA:
             segments=[],
             narrative=f"RCA pipeline failed: {type(e).__name__}: {e}",
             claims=[],
-            ruled_out=[],
+            checks=[],
             confidence="low",
             trace_url=trace_url,
             status="failed",
