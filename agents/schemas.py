@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from typing import Literal
 from uuid import uuid4
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 Metric = Literal["revenue", "fill_rate", "requests", "ctr", "ecpm"]
 
@@ -22,6 +22,19 @@ class Alert(BaseModel):
     observed: float
     baseline: float
     source: str = "hyperdx"  # or "cli", "poller"
+
+    @field_validator("window_start", "window_end", mode="before")
+    @classmethod
+    def _epoch_ms_to_datetime(cls, v):
+        """HyperDX's generic webhook sends {{startTime}}/{{endTime}} as JS
+        epoch milliseconds (a number), not an ISO string. Left as a plain
+        datetime field, pydantic would read a raw int/float as epoch
+        *seconds* and land the date thousands of years in the future — so
+        numeric input is normalized here before the default datetime
+        parsing runs. ISO strings (CLI door) pass through unchanged."""
+        if isinstance(v, (int, float)):
+            return datetime.fromtimestamp(v / 1000, tz=timezone.utc)
+        return v
 
 
 class Claim(BaseModel):
