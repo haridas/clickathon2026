@@ -1,0 +1,658 @@
+<title>InMobi Revenue RCA — Hackathon Submission</title>
+<style>
+  :root{
+    color-scheme: dark;
+    --bg:        #15130f;
+    --surface:   #1c1914;
+    --surface-2: #242019;
+    --surface-3: #2c261d;
+    --ink:       #f1ede4;
+    --ink-2:     #c9bfae;
+    --ink-muted: #8f8574;
+    --rule:      #362f24;
+    --rule-soft: #241f18;
+    --accent:      #e0a030;
+    --accent-ink:  #1a1400;
+    --accent-soft: #3a2f18;
+    --link:      #e0a030;
+    --good:     #1fbf4a;
+    --warning:  #fab219;
+    --serious:  #ec835a;
+    --critical: #ef5858;
+    --code-bg:  #100e0a;
+    --shadow: 0 12px 32px -12px rgba(0,0,0,.55);
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  :root[data-theme="light"]{
+    color-scheme: light;
+    --bg:        #efece3;
+    --surface:   #fbfaf6;
+    --surface-2: #f4f1e9;
+    --surface-3: #ece7da;
+    --ink:       #1d1810;
+    --ink-2:     #4c4536;
+    --ink-muted: #837a67;
+    --rule:      #ddd5c2;
+    --rule-soft: #e7e1d1;
+    --accent:      #a8690f;
+    --accent-ink:  #fff8ea;
+    --accent-soft: #f2e2bd;
+    --link:      #8a5709;
+    --good:     #0c8f34;
+    --warning:  #a5720a;
+    --serious:  #c25a34;
+    --critical: #c53434;
+    --code-bg:  #f4f1e9;
+    --shadow: 0 12px 28px -14px rgba(30,20,0,.25);
+  }
+  @media (prefers-color-scheme: light){
+    :root:not([data-theme="dark"]){
+      color-scheme: light;
+      --bg:        #efece3;
+      --surface:   #fbfaf6;
+      --surface-2: #f4f1e9;
+      --surface-3: #ece7da;
+      --ink:       #1d1810;
+      --ink-2:     #4c4536;
+      --ink-muted: #837a67;
+      --rule:      #ddd5c2;
+      --rule-soft: #e7e1d1;
+      --accent:      #a8690f;
+      --accent-ink:  #fff8ea;
+      --accent-soft: #f2e2bd;
+      --link:      #8a5709;
+      --good:     #0c8f34;
+      --warning:  #a5720a;
+      --serious:  #c25a34;
+      --critical: #c53434;
+      --code-bg:  #f4f1e9;
+      --shadow: 0 12px 28px -14px rgba(30,20,0,.25);
+    }
+  }
+
+  *{box-sizing:border-box}
+  body{
+    background:var(--bg); color:var(--ink); font-family:var(--sans);
+    font-size:16px; line-height:1.6; -webkit-font-smoothing:antialiased;
+  }
+  ::selection{background:var(--accent-soft)}
+  a{color:var(--link)}
+  h1,h2,h3,h4{text-wrap:balance; font-family:var(--sans); font-weight:800; letter-spacing:-.01em; margin:0}
+  code, .mono{font-family:var(--mono)}
+  .wrap{max-width:1180px; margin:0 auto; padding:0 28px}
+  .measure{max-width:72ch}
+
+  /* ---------- eyebrow / labels ---------- */
+  .eyebrow{
+    font-family:var(--mono); font-size:11.5px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--accent); font-weight:600;
+  }
+  .eyebrow.muted{color:var(--ink-muted)}
+
+  /* ---------- top nav ---------- */
+  .topnav{
+    position:sticky; top:0; z-index:40; background:color-mix(in oklab, var(--bg) 88%, transparent);
+    backdrop-filter:blur(10px); border-bottom:1px solid var(--rule-soft);
+  }
+  .topnav-inner{
+    max-width:1180px; margin:0 auto; padding:0 28px; display:flex; align-items:center; gap:22px;
+    height:52px; overflow-x:auto; scrollbar-width:none;
+  }
+  .topnav-inner::-webkit-scrollbar{display:none}
+  .topnav-brand{
+    font-family:var(--mono); font-size:12px; font-weight:700; color:var(--ink); letter-spacing:.02em;
+    white-space:nowrap; padding-right:6px; border-right:1px solid var(--rule); margin-right:2px;
+  }
+  .topnav a{
+    font-family:var(--mono); font-size:12px; color:var(--ink-muted); text-decoration:none;
+    white-space:nowrap; letter-spacing:.01em;
+  }
+  .topnav a:hover{color:var(--accent)}
+
+  /* ---------- hero ---------- */
+  .hero{padding:64px 0 40px; border-bottom:1px solid var(--rule-soft)}
+  .hero h1{font-size:clamp(30px,4.4vw,46px); line-height:1.08; max-width:16ch}
+  .hero .dek{font-size:17px; color:var(--ink-2); max-width:64ch; margin-top:16px}
+  .stat-row{
+    display:grid; grid-template-columns:repeat(5,1fr); gap:1px;
+    background:var(--rule-soft); border:1px solid var(--rule-soft); margin-top:32px; border-radius:2px; overflow:hidden;
+  }
+  @media (max-width:820px){ .stat-row{ grid-template-columns:repeat(2,1fr) } }
+  @media (max-width:460px){ .stat-row{ grid-template-columns:1fr } }
+  .stat{background:var(--surface); padding:16px 18px}
+  .stat .n{font-family:var(--mono); font-size:24px; font-weight:700; font-variant-numeric:tabular-nums; color:var(--ink)}
+  .stat .n.accent{color:var(--accent)}
+  .stat .l{font-size:11.5px; color:var(--ink-muted); margin-top:4px; letter-spacing:.02em}
+
+  /* ---------- sections ---------- */
+  section{padding:56px 0}
+  section + section{border-top:1px solid var(--rule-soft)}
+  .section-head{display:flex; align-items:baseline; gap:14px; margin-bottom:28px; flex-wrap:wrap}
+  .section-head h2{font-size:26px}
+  .section-num{font-family:var(--mono); font-size:13px; color:var(--ink-muted)}
+  p{margin:0 0 14px}
+  p:last-child{margin-bottom:0}
+  .lede{font-size:16.5px; color:var(--ink-2)}
+
+  /* ---------- formula block ---------- */
+  .formula{
+    background:var(--code-bg); border:1px solid var(--rule); border-radius:4px;
+    padding:18px 22px; font-family:var(--mono); font-size:15px; overflow-x:auto;
+    color:var(--ink); margin:18px 0;
+  }
+  .formula .op{color:var(--ink-muted)}
+  .formula .term{color:var(--accent)}
+
+  /* ---------- pipeline diagram ---------- */
+  .pipeline{display:flex; flex-direction:column; gap:0; margin:28px 0}
+  .stage-row{display:grid; grid-template-columns:120px 1fr; gap:18px; align-items:stretch}
+  .stage-row + .stage-row{margin-top:4px}
+  .stage-tag{
+    display:flex; align-items:center; justify-content:flex-end; text-align:right;
+    font-family:var(--mono); font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-muted);
+    padding:14px 0;
+  }
+  .stage-cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:10px; padding:10px 0}
+  .stage-card{
+    background:var(--surface); border:1px solid var(--rule); border-left:3px solid var(--stage-c, var(--accent));
+    border-radius:3px; padding:12px 14px;
+  }
+  .stage-card .t{font-family:var(--mono); font-size:13px; font-weight:700; color:var(--ink)}
+  .stage-card .d{font-size:12.5px; color:var(--ink-muted); margin-top:4px; line-height:1.45}
+  .flow-arrow{
+    display:flex; align-items:center; justify-content:center; color:var(--ink-muted);
+    font-size:13px; padding:2px 0; grid-column:2;
+  }
+  .flow-arrow::before{content:""; flex:1; height:1px; background:var(--rule); margin-right:8px}
+  .flow-arrow::after{content:""; flex:1; height:1px; background:var(--rule); margin-left:8px}
+
+  /* ---------- table catalog ---------- */
+  .catalog{display:flex; flex-direction:column; gap:2px; margin-top:20px}
+  .cat-row{
+    display:grid; grid-template-columns:200px 1fr; gap:20px; padding:16px 0;
+    border-bottom:1px solid var(--rule-soft);
+  }
+  .cat-row:first-child{border-top:1px solid var(--rule-soft)}
+  .cat-name{font-family:var(--mono); font-size:13.5px; font-weight:700; color:var(--accent)}
+  .cat-meta{font-size:11.5px; color:var(--ink-muted); margin-top:5px; font-family:var(--mono)}
+  .cat-why{font-size:14px; color:var(--ink-2); line-height:1.55}
+  .cat-why b{color:var(--ink); font-weight:650}
+
+  /* ---------- generic tables ---------- */
+  .tbl-wrap{overflow-x:auto; margin:18px 0; border:1px solid var(--rule); border-radius:4px}
+  table{border-collapse:collapse; width:100%; font-size:13.5px}
+  th,td{padding:9px 14px; text-align:left; white-space:nowrap}
+  th{
+    font-family:var(--mono); font-size:10.5px; letter-spacing:.06em; text-transform:uppercase;
+    color:var(--ink-muted); background:var(--surface-2); border-bottom:1px solid var(--rule); font-weight:600;
+  }
+  td{border-bottom:1px solid var(--rule-soft); font-variant-numeric:tabular-nums; color:var(--ink-2)}
+  tr:last-child td{border-bottom:none}
+  td.num, th.num{text-align:right}
+  td.hl{color:var(--ink); font-weight:600}
+
+  /* ---------- severity chips ---------- */
+  .chip{
+    display:inline-flex; align-items:center; gap:5px; font-family:var(--mono); font-size:10.5px;
+    font-weight:700; letter-spacing:.04em; padding:2px 7px; border-radius:3px; white-space:nowrap;
+  }
+  .chip::before{content:""; width:6px; height:6px; border-radius:50%; background:currentColor}
+  .chip.p1{color:var(--critical); background:color-mix(in oklab, var(--critical) 14%, transparent)}
+  .chip.p2{color:var(--warning); background:color-mix(in oklab, var(--warning) 16%, transparent)}
+  .chip.good{color:var(--good); background:color-mix(in oklab, var(--good) 14%, transparent)}
+
+  /* ---------- trap callout ---------- */
+  .callout{
+    background:var(--surface); border:1px solid var(--rule); border-radius:4px; padding:20px 22px; margin:18px 0;
+  }
+  .callout.warn{border-left:3px solid var(--critical)}
+  .callout .k{font-family:var(--mono); font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--critical); font-weight:700; margin-bottom:8px}
+  .two-col{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin:18px 0}
+  @media (max-width:720px){.two-col{grid-template-columns:1fr}}
+  .mini-card{background:var(--surface); border:1px solid var(--rule); border-radius:4px; padding:16px 18px}
+  .mini-card .k{font-family:var(--mono); font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-muted); margin-bottom:6px}
+  .mini-card .v{font-size:14px; color:var(--ink-2); line-height:1.5}
+  .mini-card.bad{border-color:color-mix(in oklab, var(--critical) 40%, var(--rule))}
+  .mini-card.good{border-color:color-mix(in oklab, var(--good) 40%, var(--rule))}
+
+  /* ---------- timeline chart ---------- */
+  .timeline-wrap{overflow-x:auto; margin:24px 0}
+  .timeline{
+    display:grid; grid-template-columns:repeat(40, minmax(20px,1fr)); min-width:900px;
+    border-bottom:1px solid var(--rule); padding-bottom:6px; padding-top:20px;
+  }
+  .tl-row{display:contents}
+  .tl-track{
+    grid-column:1/41; display:grid; grid-template-columns:subgrid; align-items:center; height:26px; position:relative;
+  }
+  .tl-track::before{
+    content:""; grid-column:1/41; position:absolute; inset:0; top:calc(50% - .5px); height:1px; background:var(--rule-soft);
+  }
+  .tl-bar{
+    height:14px; border-radius:7px; position:relative; display:flex; align-items:center;
+    box-shadow:0 0 0 2px var(--bg);
+  }
+  :root[data-theme="light"] .tl-bar, :root:not([data-theme="dark"]) .tl-bar{box-shadow:0 0 0 2px var(--surface)}
+  .tl-label{
+    position:absolute; left:0; top:-16px; font-family:var(--mono); font-size:10px; color:var(--ink-muted);
+    white-space:nowrap;
+  }
+  .tl-axis{grid-column:1/41; display:grid; grid-template-columns:subgrid; margin-top:8px}
+  .tl-tick{font-family:var(--mono); font-size:10px; color:var(--ink-muted); text-align:center}
+  .tl-legend{display:flex; gap:18px; flex-wrap:wrap; margin-top:22px}
+  .tl-leg-item{display:flex; align-items:center; gap:7px; font-size:12px; color:var(--ink-2)}
+  .tl-leg-swatch{width:12px; height:12px; border-radius:3px; flex:none}
+
+  /* ---------- incident cards ---------- */
+  .incident{
+    background:var(--surface); border:1px solid var(--rule); border-radius:6px; margin:22px 0; overflow:hidden;
+  }
+  .incident-head{
+    display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;
+    padding:18px 22px; border-bottom:1px solid var(--rule-soft); background:var(--surface-2);
+  }
+  .incident-head .name{font-size:17px; font-weight:750; color:var(--ink)}
+  .incident-head .win{font-family:var(--mono); font-size:12px; color:var(--ink-muted); margin-top:3px}
+  .incident-body{padding:20px 22px}
+  .metric-strip{
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:1px;
+    background:var(--rule-soft); border:1px solid var(--rule-soft); margin:14px 0; border-radius:3px; overflow:hidden;
+  }
+  .metric-cell{background:var(--surface-2); padding:11px 14px}
+  .metric-cell .k{font-family:var(--mono); font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-muted)}
+  .metric-cell .v{font-family:var(--mono); font-size:16px; font-weight:700; color:var(--ink); margin-top:3px; font-variant-numeric:tabular-nums}
+  .metric-cell .v.down{color:var(--critical)}
+  .metric-cell .v.up{color:var(--good)}
+  .evidence-list{margin:14px 0 0; padding-left:20px}
+  .evidence-list li{margin-bottom:8px; color:var(--ink-2); font-size:14.5px; line-height:1.55}
+  .evidence-list li b{color:var(--ink)}
+  .ruled-out{font-size:13.5px; color:var(--ink-muted); border-top:1px dashed var(--rule); margin-top:16px; padding-top:14px}
+
+  /* ---------- footer ---------- */
+  footer{padding:40px 0 64px; color:var(--ink-muted); font-size:13px}
+  footer a{color:var(--ink-muted)}
+
+  /* ---------- code block ---------- */
+  pre{
+    background:var(--code-bg); border:1px solid var(--rule); border-radius:4px; padding:16px 18px;
+    overflow-x:auto; font-family:var(--mono); font-size:12.5px; line-height:1.6; color:var(--ink-2); margin:16px 0;
+  }
+  pre .kw{color:var(--accent)}
+  pre .cm{color:var(--ink-muted); font-style:italic}
+
+  /* ---------- theme toggle ---------- */
+  #themer{
+    position:fixed; right:18px; bottom:18px; z-index:80; display:inline-flex; align-items:center; gap:7px;
+    cursor:pointer; background:var(--surface); color:var(--ink-muted); border:1px solid var(--rule);
+    border-radius:3px; box-shadow:var(--shadow); padding:8px 12px; font-family:var(--mono); font-size:11px;
+    letter-spacing:.06em; text-transform:uppercase;
+  }
+  #themer:hover{color:var(--ink); border-color:var(--ink-muted)}
+  #themer .dot{width:7px; height:7px; border-radius:50%; background:var(--accent); flex:none}
+</style>
+
+<nav class="topnav">
+  <div class="topnav-inner">
+    <span class="topnav-brand">InMobi RCA</span>
+    <a href="#identity">Identity</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#tables">Tables</a>
+    <a href="#algorithm">Algorithm</a>
+    <a href="#trap">The trap</a>
+    <a href="#findings">Findings</a>
+    <a href="#trace">Trace</a>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow">ClickHouse Click-a-thon 2026 — automated root-cause analyst</div>
+    <h1>A revenue RCA pipeline that alerts while the data is still landing.</h1>
+    <p class="dek">Nine dimensions, four factors, one identity. Every anomaly below was found by a detector that scores in a materialized view at insert time — not a nightly batch job — and every number is reproducible from the SQL in this repository against a live ClickHouse Cloud cluster.</p>
+    <div class="stat-row">
+      <div class="stat"><div class="n accent">7</div><div class="l">confirmed incidents</div></div>
+      <div class="stat"><div class="n">40</div><div class="l">days scored, Jun&nbsp;1 – Jul&nbsp;10</div></div>
+      <div class="stat"><div class="n">24</div><div class="l">clean days, zero false alerts</div></div>
+      <div class="stat"><div class="n">10.5M</div><div class="l">events, one unified table</div></div>
+      <div class="stat"><div class="n">−$310</div><div class="l">total measured revenue impact</div></div>
+    </div>
+  </div>
+</header>
+
+<section id="identity">
+  <div class="wrap">
+    <div class="section-head"><span class="section-num">01</span><h2>The identity everything else decomposes</h2></div>
+    <p class="lede measure">Revenue accrues only on impressions, so this holds exactly — not approximately — for any window, any segment:</p>
+    <div class="formula">Revenue &nbsp;=&nbsp; <span class="term">Requests</span> <span class="op">&times;</span> <span class="term">Fill&nbsp;rate</span> <span class="op">&times;</span> <span class="term">Render&nbsp;rate</span> <span class="op">&times;</span> <span class="term">eCPM</span> <span class="op">/ 1000</span></div>
+    <p class="measure">Fill rate is fills&nbsp;/&nbsp;requests, render rate is impressions&nbsp;/&nbsp;fills, eCPM is revenue per thousand impressions. When revenue moves, it moved because exactly one or more of these four factors moved — the question the whole pipeline exists to answer is <i>which one, in which segment, and is it real or an artifact of how the traffic mix shifted underneath it.</i></p>
+    <p class="measure">The submission below is organized the way the pipeline itself is organized: ingest, decompose, detect, explain. Section&nbsp;2 is the architecture. Section&nbsp;4 is the four algorithms that do the actual reasoning. Section&nbsp;6 is what they found — 2 incidents in the sealed unseen dataset the challenge released, plus 5 more the same detector recovers when pointed at the full 40-day history, including one nobody had found before.</p>
+  </div>
+</section>
+
+<section id="architecture">
+  <div class="wrap">
+    <div class="section-head"><span class="section-num">02</span><h2>Pipeline architecture</h2></div>
+    <p class="lede measure">Four stages. Data lands once, in the raw fact table; everything downstream is a materialized view that fires on that same insert — there is no scheduler, no cron, no batch window. An alert can exist within the same transaction as the event that caused it.</p>
+
+    <div class="pipeline">
+      <div class="stage-row">
+        <div class="stage-tag">01 — Ingest</div>
+        <div class="stage-cards">
+          <div class="stage-card" style="--stage-c:#3987e5"><div class="t">ad_events</div><div class="d">The one fact table. 9 raw columns, no dimension joins baked in. Partitioned by month, ordered by (hour, app_id).</div></div>
+          <div class="stage-card" style="--stage-c:#3987e5"><div class="t">apps · geo_device · advertisers</div><div class="d">Dimension tables, loaded before events. 3 dictionaries (COMPLEX_KEY_HASHED) sit on top for O(1) lookups inside the MVs below.</div></div>
+        </div>
+      </div>
+      <div class="flow-arrow">materialized views fire on every INSERT</div>
+      <div class="stage-row">
+        <div class="stage-tag">02 — Decompose</div>
+        <div class="stage-cards">
+          <div class="stage-card" style="--stage-c:#d95926"><div class="t">rollup_totals_1m</div><div class="d">Minute-grain totals. Dimension-free — the alerting grain for the four global factors.</div></div>
+          <div class="stage-card" style="--stage-c:#d95926"><div class="t">rollup_marginal_1h</div><div class="d">One row per (dimension, value, hour) via ARRAY JOIN — <i>marginal</i>, not a cube. 61,440 rows vs. 9M facts.</div></div>
+          <div class="stage-card" style="--stage-c:#d95926"><div class="t">rollup_os_country_1h</div><div class="d">The one targeted 2-way cross, for interaction faults a single dimension can't see.</div></div>
+        </div>
+      </div>
+      <div class="flow-arrow">views read the rollups, never the fact table</div>
+      <div class="stage-row">
+        <div class="stage-tag">03 — Explain</div>
+        <div class="stage-cards">
+          <div class="stage-card" style="--stage-c:#199e70"><div class="t">v_factors_1h / 1d</div><div class="d">The identity computed live — sum/sum ratios, never an average of ratios.</div></div>
+          <div class="stage-card" style="--stage-c:#199e70"><div class="t">v_attribution_1d</div><div class="d">LMDI split of a day's revenue delta into 4 exact dollar contributions.</div></div>
+          <div class="stage-card" style="--stage-c:#199e70"><div class="t">rca_scan / rca_seg / rca_volume</div><div class="d">Parameterized drill-down: which dimension owns the move, which segment, rate or mix.</div></div>
+        </div>
+      </div>
+      <div class="flow-arrow">scored against a driver-based expected value, not a raw threshold</div>
+      <div class="stage-row">
+        <div class="stage-tag">04 — Detect</div>
+        <div class="stage-cards">
+          <div class="stage-card" style="--stage-c:#c98500"><div class="t">v_pricebook_jun / v_fillbook_jun</div><div class="d">The two driver-keyed baselines every rate and price gets scored against.</div></div>
+          <div class="stage-card" style="--stage-c:#c98500"><div class="t">alerts_unseen</div><div class="d">Binomial z (rate metrics) / relative deviation (eCPM), scored per segment per day.</div></div>
+          <div class="stage-card" style="--stage-c:#c98500"><div class="t">v_incidents_full</div><div class="d">Collapses raw alerts to root causes, one row per (day, metric) group.</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="tables">
+  <div class="wrap">
+    <div class="section-head"><span class="section-num">03</span><h2>Why each table exists</h2></div>
+    <p class="lede measure">Nothing here is a generic star schema. Every table is shaped by a specific decision about what it needs to answer quickly — the catalog below is also the argument for why it's structured that way.</p>
+    <div class="catalog">
+      <div class="cat-row">
+        <div><div class="cat-name">ad_events</div><div class="cat-meta">10.5M rows · MergeTree</div></div>
+        <div class="cat-why">The single source of truth. Everything else is derived from it and can be rebuilt from it. Ordered by <code>(toStartOfHour(event_time), app_id)</code> so hour-range scans are sequential reads, not random I/O.</div>
+      </div>
+      <div class="cat-row">
+        <div><div class="cat-name">dict_apps / dict_geo / dict_adv</div><div class="cat-meta">COMPLEX_KEY_HASHED dictionaries</div></div>
+        <div class="cat-why">Every downstream rollup needs a dimension label for every event. A dictionary lookup is O(1) in memory; a JOIN against the dimension table re-plans per query. At this event volume the difference is the gap between a materialized view keeping up with the insert stream and falling behind it.</div>
+      </div>
+      <div class="cat-row">
+        <div><div class="cat-name">rollup_totals_1m</div><div class="cat-meta">57,600 rows · SummingMergeTree</div></div>
+        <div class="cat-why">Dimension-free, minute grain. This is what <b>v_factors_1h/1d</b> and the LMDI attribution read — the four global factors don't need a single dimension join, so they shouldn't pay for one.</div>
+      </div>
+      <div class="cat-row">
+        <div><div class="cat-name">rollup_marginal_1h</div><div class="cat-meta">61,440 rows · SummingMergeTree</div></div>
+        <div class="cat-why">The drill-down table, and the one deliberate architecture choice worth calling out: it's <b>one row per (dimension, value, hour)</b>, built with <code>ARRAY JOIN</code> over a literal array of 9 dimension tuples — not a cube of all dimension combinations. Cost scales with <code>hours &times; &Sigma;(cardinality)</code>, independent of event volume. A full cube over these 9 dimensions would be 2<sup>9</sup> combinations; this is 9. The existing full cube in this dataset (<code>ad_events_hourly</code>) is 7.9M rows for 9M facts — barely a reduction. This table is 61,440 rows for the same facts, a 167&times; reduction, because a drill-down only ever needs "what did country=US look like," never "what did country=US &and; os=iOS17.5 &and; format=video look like" until a scan has already narrowed to that cross — at which point <b>rollup_os_country_1h</b> exists for exactly that.</div>
+      </div>
+      <div class="cat-row">
+        <div><div class="cat-name">rollup_os_country_1h</div><div class="cat-meta">122,863 rows · SummingMergeTree</div></div>
+        <div class="cat-why">The one 2-way cross kept pre-built, because OS &times; geography is where interaction faults actually live in ad delivery (a specific SDK build on a specific carrier's network). The Jun 28–30 incident below is invisible at full severity without it — the marginal os_version scan alone reads a diluted −12%; crossed against country it's −52%, region-locked to four countries.</div>
+      </div>
+      <div class="cat-row">
+        <div><div class="cat-name">v_pricebook_jun / v_fillbook_jun</div><div class="cat-meta">views over ad_events, June weekdays only</div></div>
+        <div class="cat-why">The two baselines every alert is scored against. Not simple period averages — <b>eCPM is keyed to (country &times; ad_format)</b> and <b>fill/render is keyed to (publisher_tier &times; ad_format)</b>, because those are the actual drivers of each metric, discovered empirically (Section&nbsp;5). Built as the <i>median</i> across days, not sum/sum, so a planted incident inside the training window can't drag down its own detection threshold.</div>
+      </div>
+      <div class="cat-row">
+        <div><div class="cat-name">fill_expected_1d / ecpm_expected_1d</div><div class="cat-meta">2,120 / 2,520 rows · SummingMergeTree</div></div>
+        <div class="cat-why">Per-event expected value, computed once and pre-aggregated to (day, dimension, value) for every one of the 9 dimensions simultaneously. This is what turns "compare against a baseline" from an O(dimensions) re-scan into a single table scan.</div>
+      </div>
+      <div class="cat-row">
+        <div><div class="cat-name">alerts_unseen / v_incidents_full</div><div class="cat-meta">277 raw rows &rarr; 18 incident rows</div></div>
+        <div class="cat-why">The output layer. <code>alerts_unseen</code> is every segment/day/metric combination that breached threshold — intentionally noisy, so nothing is hidden. <code>v_incidents_full</code> collapses that into one row per real root cause by ranking |z| within each (day, metric) group, reporting everything else as bleed-through rather than a separate incident. See Section&nbsp;4.3.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="algorithm">
+  <div class="wrap">
+    <div class="section-head"><span class="section-num">04</span><h2>The four algorithms</h2></div>
+
+    <h3 style="font-size:18px;margin-top:8px">4.1 — LMDI factor attribution</h3>
+    <p class="measure">For a multiplicative identity, weighting each factor's log-change by <code>L = &Delta;revenue / ln(rev&#8321;/rev&#8320;)</code> makes the four contributions sum to the revenue delta <b>exactly, with zero residual</b>:</p>
+    <div class="formula">contribution(factor) &nbsp;=&nbsp; L &times; ln(factor&#8321; / factor&#8320;)</div>
+    <p class="measure">Naive alternatives — hold-one-factor-constant, first-difference — leave an unexplained interaction term. LMDI doesn't: on every incident day below, the four contributions sum to the observed delta to within <code>$0.004</code>. That's not an approximation error rounding away; it's the identity, verified.</p>
+
+    <h3 style="font-size:18px;margin-top:28px">4.2 — Rate vs. mix, inside a segment</h3>
+    <p class="measure">A segment's contribution to a metric change splits into two exact, additive terms:</p>
+    <div class="formula">rate&nbsp;effect &nbsp;=&nbsp; (w&#8320;+w&#8321;)/2 &times; (m&#8321;-m&#8320;) &nbsp;&nbsp;<span class="op">// the segment itself changed</span><br>mix&nbsp;effect &nbsp;=&nbsp; (m&#8320;+m&#8321;)/2 &times; (w&#8321;-w&#8320;) &nbsp;&nbsp;<span class="op">// traffic shifted between segments</span></div>
+    <p class="measure">This is the difference between "a country's fill rate collapsed" and "traffic shifted toward a country that always had lower fill" — two completely different fixes, indistinguishable by looking at the raw number alone. Every incident below reports both; in six of seven the mix effect is ~0 and the rate effect carries the entire move — confirmation that what's being measured is a real fault, not a reshuffle.</p>
+
+    <h3 style="font-size:18px;margin-top:28px">4.3 — Concentration ranking &amp; root-cause collapse</h3>
+    <p class="measure">For a metric move, <code>rca_scan</code> ranks all 9 dimensions by <b>concentration</b> — the dispersion of per-segment change relative to the overall move:</p>
+    <div class="tbl-wrap"><table><thead><tr><th>concentration</th><th>reading</th></tr></thead><tbody>
+      <tr><td class="hl">&asymp; 0</td><td>the move is uniform across every segment — global to that dimension, not a segment fault. Stop looking there.</td></tr>
+      <tr><td class="hl">&gt; 2</td><td>one segment owns the move. That's the root cause.</td></tr>
+      <tr><td class="hl">two dimensions both &gt; 2</td><td>an interaction. Cross them — this is exactly what happened with iOS&nbsp;18.1 &times; APAC below.</td></tr>
+    </tbody></table></div>
+    <p class="measure">Once a root cause is found, the same 19%-share segment dropping 40% <i>must</i> move every dimension that overlaps it by up to ~7.7% — that's arithmetic, not 25 independent incidents. <code>v_incidents_full</code> ranks every alert within its (day, metric) group by |z| and keeps only the top row as the root cause, reporting the rest as <code>bleed_through_alerts</code> — a count that's a consistency check on the diagnosis, not noise to suppress.</p>
+
+    <h3 style="font-size:18px;margin-top:28px">4.4 — Two noise models, matched to what's actually being counted</h3>
+    <p class="measure">Fill rate and render rate are <b>proportions of a known trial count</b> — this many requests, this many filled. They get a binomial standard error, inflated by an overdispersion factor &phi;=1.6 so real-world clustering (one app having a bad minute) doesn't produce false positives from a model that assumes independence:</p>
+    <div class="formula">z &nbsp;=&nbsp; (p_observed &minus; p_baseline) / (&phi; &times; &radic;(p&middot;(1&minus;p)/n))</div>
+    <p class="measure">eCPM has no trial count — it's a continuous ratio — so it's scored on relative deviation against a 0.5% noise floor, set at 20&times; the ±0.025pp residual measured out-of-sample on 7 held-out days. And requests, a raw count with real weekday/weekend structure, uses median + MAD against the same-day-type history rather than mean + stddev, so a past incident inside the baseline window can't inflate the very threshold meant to catch the next one — the exact bug the first version of this pipeline had, documented in Section&nbsp;5.</p>
+  </div>
+</section>
+
+<section id="trap">
+  <div class="wrap">
+    <div class="section-head"><span class="section-num">05</span><h2>The trap: dimension tables that were quietly regenerated</h2></div>
+    <p class="lede measure">The sealed unseen dataset ships three new dimension CSVs — same <code>app_id</code>/<code>geo_device_id</code>/<code>advertiser_id</code> keys, but every attribute value regenerated: 82% of apps changed category, 92% of geo profiles changed country, 85% of advertisers changed vertical. This is the part of the submission where the pipeline had to prove it generalizes, not just replay a rehearsed answer.</p>
+
+    <div class="callout warn">
+      <div class="k">The wrong move, either direction</div>
+      <p>The obvious read is "restate history through the new labels and compare." The other obvious read is "the old rollups are still valid as-is." <b>Both are wrong — and each is wrong for a different half of the metrics</b>, which is what makes this trap effective: whichever one you pick, half your numbers look perfectly reasonable.</p>
+    </div>
+
+    <div class="two-col">
+      <div class="mini-card bad">
+        <div class="k">Measured: eCPM, country dimension</div>
+        <div class="v"><b>1.7% error</b> using old labels as-is. <b>67–73% error</b> restated through new labels. Price is a property of the <i>label</i> — a country's market rate carries across a relabeling; a device's price does not follow it.</div>
+      </div>
+      <div class="mini-card bad">
+        <div class="k">Measured: segment traffic share</div>
+        <div class="v"><b>8–24pp error</b> using old labels as-is. <b>&le;1.2pp error</b> restated through new labels. Volume is a property of the <i>device ID</i> — a device keeps its traffic when relabeled; it does not keep its old country's share.</div>
+      </div>
+    </div>
+
+    <p class="measure">Concretely: under old labels, <code>country=ID</code> carried 6.98% of requests; under new labels, 17.46%. Naively read, that's a massive traffic shift toward Indonesia. It's <b>entirely relabeling</b> — the restated old-period figure is 17.47%, matching to a hundredth of a point. Meanwhile per-country eCPM barely moved across the boundary (US $3.633 &rarr; $3.559) — visible only if you <i>don't</i> restate. A detector that skipped this distinction would have raised four false P1 eCPM alerts on completely clean days, at almost 2&times; the actual incidents' severity.</p>
+
+    <p class="measure"><b>The fix: never baseline the segment, baseline the driver.</b> <code>fill_rate</code> and <code>render_rate</code> are keyed to <code>publisher_tier &times; ad_format</code> (0.81% error vs. 14.26% for the naive tier-only version); <code>eCPM</code> is keyed to <code>country &times; ad_format</code>. Expected value for any segment on any day becomes <code>&Sigma; observed_events &times; driver_rate</code> — the mix cancels by construction, so a segment only flags when its own rate moved, which is what an incident actually is.</p>
+
+    <div class="callout">
+      <div class="k" style="color:var(--accent)">A second version of the same trap, caught mid-submission</div>
+      <p>Making the pipeline self-contained meant loading the main dataset's 9M events into the same table as the unseen slice, with <b>both</b> dimension snapshots live side by side. The first attempt at rescoring hard-coded the current (unseen) dictionary for every lookup — including main-dataset events. Result: <code>country=AE</code> came back at <b>z&nbsp;=&nbsp;+327, a +162% eCPM "incident," on 30 of 35 June days.</b> The fix is a per-event dictionary switch — <code>if(event_time &lt; boundary, dict_v1, dict_current)</code> — applied at every lookup, not assumed constant for a backfill. This is the same trap in a different location: it isn't enough to know the rule once, the rule has to be re-applied correctly every time two label epochs coexist in one table.</p>
+    </div>
+  </div>
+</section>
+
+<section id="findings">
+  <div class="wrap">
+    <div class="section-head"><span class="section-num">06</span><h2>Findings: 7 incidents, 40 days, zero false positives</h2></div>
+    <p class="lede measure">The sealed unseen dataset (Jul 6–10) contains 2 incidents — that's the graded submission. Re-running the identical detector, no threshold changed, across the full 40-day history it was trained on recovers all 4 incidents from the original analysis and surfaces one it hadn't found before. <span class="chip good">0 false alerts</span> on the other 24 days.</p>
+
+    <div class="timeline-wrap">
+      <div class="timeline">
+        <div class="tl-row"><div class="tl-track" style="grid-template-rows:1fr">
+          <div class="tl-bar" style="grid-column:16/19; background:#c98500"><span class="tl-label">EU&nbsp;&times;&nbsp;interstitial</span></div>
+        </div></div>
+        <div class="tl-row"><div class="tl-track">
+          <div class="tl-bar" style="grid-column:19/23; background:#d95926"><span class="tl-label">finance eCPM</span></div>
+        </div></div>
+        <div class="tl-row"><div class="tl-track">
+          <div class="tl-bar" style="grid-column:21/22; background:#8f8574; width:8px; justify-self:center"><span class="tl-label">ingestion gap</span></div>
+        </div></div>
+        <div class="tl-row"><div class="tl-track">
+          <div class="tl-bar" style="grid-column:23/26; background:#3987e5"><span class="tl-label">Android 15 fill</span></div>
+        </div></div>
+        <div class="tl-row"><div class="tl-track">
+          <div class="tl-bar" style="grid-column:28/31; background:#3987e5"><span class="tl-label">iOS 18.1 &times; APAC</span></div>
+        </div></div>
+        <div class="tl-row"><div class="tl-track">
+          <div class="tl-bar" style="grid-column:38/40; background:#199e70"><span class="tl-label">iOS 17.5 fill</span></div>
+        </div></div>
+        <div class="tl-row"><div class="tl-track">
+          <div class="tl-bar" style="grid-column:39/41; background:#d95926"><span class="tl-label">video eCPM</span></div>
+        </div></div>
+        <div class="tl-axis">
+          <div class="tl-tick" style="grid-column:1">Jun 1</div>
+          <div class="tl-tick" style="grid-column:8">Jun 8</div>
+          <div class="tl-tick" style="grid-column:15">Jun 15</div>
+          <div class="tl-tick" style="grid-column:22">Jun 22</div>
+          <div class="tl-tick" style="grid-column:29">Jun 29</div>
+          <div class="tl-tick" style="grid-column:31">Jul 1</div>
+          <div class="tl-tick" style="grid-column:38">Jul 8</div>
+          <div class="tl-tick" style="grid-column:40">Jul 10</div>
+        </div>
+      </div>
+    </div>
+    <div class="tl-legend">
+      <div class="tl-leg-item"><span class="tl-leg-swatch" style="background:#c98500"></span>eCPM, main dataset</div>
+      <div class="tl-leg-item"><span class="tl-leg-swatch" style="background:#d95926"></span>eCPM, main + unseen</div>
+      <div class="tl-leg-item"><span class="tl-leg-swatch" style="background:#3987e5"></span>fill rate, main dataset</div>
+      <div class="tl-leg-item"><span class="tl-leg-swatch" style="background:#199e70"></span>fill rate, unseen dataset</div>
+      <div class="tl-leg-item"><span class="tl-leg-swatch" style="background:#8f8574"></span>request volume</div>
+    </div>
+
+    <h3 style="font-size:19px;margin-top:44px;padding-top:8px">The sealed submission — 2 incidents in the unseen slice</h3>
+    <p class="measure" style="color:var(--ink-muted); font-size:14px">Jul 6–10, 2026. 1,500,000 events. Both are exactly 48 contiguous hours, both start on a UTC midnight boundary, and they overlap on Jul 9 — the worst revenue day of the window.</p>
+
+    <div class="incident">
+      <div class="incident-head">
+        <div><div class="name">Incident A — <code>os_version = iOS 17.5</code> fill-rate collapse</div><div class="win">2026-07-08 00:00 &rarr; 2026-07-09 23:59 UTC · fill_rate</div></div>
+        <span class="chip p1">P1 · z −117.2</span>
+      </div>
+      <div class="incident-body">
+        <div class="metric-strip">
+          <div class="metric-cell"><div class="k">Segment share</div><div class="v">19.2% of requests</div></div>
+          <div class="metric-cell"><div class="k">Baseline &rarr; observed</div><div class="v down">0.792 &rarr; 0.478</div></div>
+          <div class="metric-cell"><div class="k">Change</div><div class="v down">&minus;39.7%</div></div>
+          <div class="metric-cell"><div class="k">Revenue impact</div><div class="v down">&minus;$66.00</div></div>
+        </div>
+        <ul class="evidence-list">
+          <li><b>Uniform across every geography and device.</b> All 16 countries −37.3% to −43.0%; all 3 iPhone models carrying this OS within 0.1pp of each other.</li>
+          <li><b>The control case is decisive.</b> Holding hardware fixed at iPhone 14 and varying only OS: iOS 17.5 is −40.0%, while iOS 18.1 / 17.2 / 16.4 on the identical hardware read −0.6% / −0.2% / +0.6%.</li>
+          <li><b>Onset and recovery are single-hour sharp</b> — 0.7945 at 23:00 Jul 7 &rarr; 0.4798 at 00:00 Jul 8, and back to 0.7858 at 00:00 Jul 10. Consistent with an SDK-compatibility or bidder rule keyed on the OS version string, switched on and off, not a gradual degradation.</li>
+        </ul>
+        <div class="ruled-out"><b>Not the cause:</b> the dimension scan also flags <code>device_model=iPhone 14</code> (−23.5%) and <code>country=ID</code> (−23.8%) — pure bleed-through from being the buckets with the most iOS 17.5 traffic. Their |z| peaks at 71 against the root cause's 117, and they resolve to flat once iOS 17.5 is held out.</div>
+      </div>
+    </div>
+
+    <div class="incident">
+      <div class="incident-head">
+        <div><div class="name">Incident B — <code>ad_format = video</code> price collapse</div><div class="win">2026-07-09 00:00 &rarr; still open at end of data · eCPM</div></div>
+        <span class="chip p1">P1 · z −59.7</span>
+      </div>
+      <div class="incident-body">
+        <div class="metric-strip">
+          <div class="metric-cell"><div class="k">Segment share</div><div class="v">11.9% of impressions</div></div>
+          <div class="metric-cell"><div class="k">Baseline &rarr; observed</div><div class="v down">$6.03 &rarr; $4.23</div></div>
+          <div class="metric-cell"><div class="k">Change</div><div class="v down">&minus;29.9%</div></div>
+          <div class="metric-cell"><div class="k">Paired move</div><div class="v up">rewarded +25.5%</div></div>
+        </div>
+        <ul class="evidence-list">
+          <li><b>A pricing change, not a delivery change.</b> Impression counts flat on both formats across the window; the rate/mix split puts the entire move in the rate effect (−0.209) against a mix effect of ~0.0002.</li>
+          <li><b>Uniform across every other cut</b> — 16 countries −29.8% to −30.5%, 7 verticals, 3 tiers, 3 campaign types all within a point of each other. Rules out a single advertiser or region pulling budget.</li>
+          <li><b>Not a clean swap.</b> Both moves start the same hour, but combined video+rewarded eCPM still falls from $5.39 to $4.81 — roughly $52/day of the $94/day video loss is genuinely gone, not relabeled as rewarded. Consistent with a bid-multiplier or floor-price table where both entries changed together.</li>
+          <li><b>Never recovers within the dataset</b> — still active at the last hour of data, unlike every other incident here.</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3 style="font-size:19px;margin-top:44px;padding-top:8px">Recovered from the full 40-day history</h3>
+    <p class="measure" style="color:var(--ink-muted); font-size:14px">Same detector, same thresholds, zero tuning — pointed at the 9M-event main dataset the pipeline was originally built against.</p>
+
+    <div class="tbl-wrap"><table><thead><tr>
+      <th>Days</th><th>Metric</th><th>Root cause</th><th class="num">Baseline &rarr; observed</th><th class="num">z</th><th>Sev</th><th class="num">Impact</th>
+    </tr></thead><tbody>
+      <tr><td>Jun 16–18</td><td>eCPM</td><td><code>region=EU</code> &times; <code>interstitial</code> <span class="chip good" style="margin-left:6px">new</span></td><td class="num">$2.83 &rarr; $2.28</td><td class="num">−13.8</td><td><span class="chip p2">P2</span></td><td class="num hl">−$20.00</td></tr>
+      <tr><td>Jun 19–22</td><td>eCPM</td><td><code>category=finance</code></td><td class="num">$2.48 &rarr; $1.61</td><td class="num">−70</td><td><span class="chip p1">P1</span></td><td class="num hl">−$41.80</td></tr>
+      <tr><td>Jun 21</td><td>requests</td><td>ingestion gap, whole pipeline</td><td class="num">224,855 &rarr; 126,052</td><td class="num">−10.0</td><td><span class="chip p1">P1</span></td><td class="num hl">−43.9%</td></tr>
+      <tr><td>Jun 23–25</td><td>fill_rate</td><td><code>os_version=Android 15</code></td><td class="num">0.784 &rarr; 0.433</td><td class="num">−87</td><td><span class="chip p1">P1</span></td><td class="num hl">−$68.11</td></tr>
+      <tr><td>Jun 28–30</td><td>fill_rate</td><td><code>iOS 18.1</code> &times; <code>APAC</code></td><td class="num">0.786 &rarr; 0.380</td><td class="num">−26</td><td><span class="chip p1">P1</span></td><td class="num hl">−$20.66</td></tr>
+      <tr><td>Jul 8–9</td><td>fill_rate</td><td><code>os_version=iOS 17.5</code></td><td class="num">0.792 &rarr; 0.477</td><td class="num">−117</td><td><span class="chip p1">P1</span></td><td class="num hl">−$66.00</td></tr>
+      <tr><td>Jul 9–10</td><td>eCPM</td><td><code>ad_format=video</code></td><td class="num">$6.03 &rarr; $4.22</td><td class="num">−60</td><td><span class="chip p1">P1</span></td><td class="num hl">−$93.74</td></tr>
+    </tbody></table></div>
+
+    <div class="two-col" style="margin-top:24px">
+      <div class="mini-card">
+        <div class="k">Why request volume needed a 5th detector</div>
+        <div class="v">Fill and eCPM detectors score <i>rates</i>, which are blind to a uniform drop in the request stream itself — a pipe flowing at half rate still shows a normal fill rate. <code>v_request_alerts</code> closes the gap with median+MAD on daily request counts. It fires exactly once, on Jun 21. A retention check confirms every one of the 9 dimensions drops 46.6–50.9% — uniform, so it's an ingestion outage, not a demand shock.</div>
+      </div>
+      <div class="mini-card">
+        <div class="k">Why iOS 18.1 needed the 2-way cross</div>
+        <div class="v">The single-dimension scan flags <code>os_version=iOS 18.1</code> at a diluted −12%. Crossed against <code>rollup_os_country_1h</code>, the real shape is <b>iOS 18.1 <i>and</i></b> four APAC countries together at −52%, with iOS 18.1 everywhere else within 1% of normal. A real-but-weak single-dimension hit is the signature of an interaction — the fix is to cross it, not trust the marginal number.</div>
+      </div>
+    </div>
+
+    <div class="mini-card good" style="margin-top:16px">
+      <div class="k">Jun 16–18 — a genuine new finding, not a rehearsed one</div>
+      <div class="v">This surfaced only during this submission's full-window rescore and wasn't in the original analysis. It first looked like bleed-through from the adjacent Jun 19–22 finance-eCPM incident, but the two don't overlap in time (finance eCPM is flat through Jun 18) or mechanism (finance is only 18% of interstitial volume, not concentrated there). Crossing <code>ad_format=interstitial</code> against country shows the real shape: FR/UK/ES/DE drop ~19.7% for exactly three days while every other country sits flat at +1%.</div>
+    </div>
+  </div>
+</section>
+
+<section id="trace">
+  <div class="wrap">
+    <div class="section-head"><span class="section-num">07</span><h2>Trace &amp; reproducibility</h2></div>
+    <p class="lede measure">Every number above comes from these queries, against the live cluster, with no intermediate hand-editing. Run order: <code>u01_schema.sql &rarr; u02_pipeline.sql &rarr; u03_baselines.sql &rarr; u04_alerts.sql &rarr; u05_rca_scan.sql</code>.</p>
+    <pre><span class="cm">-- the full incident timeline, top to bottom of Section 6</span>
+<span class="kw">SELECT</span> * <span class="kw">FROM</span> `inmobi-hari`.v_incidents_full <span class="kw">ORDER BY</span> day;
+
+<span class="cm">-- drill into any move: which dimension owns it</span>
+<span class="kw">SELECT</span> * <span class="kw">FROM</span> `inmobi-hari`.rca_scan(
+  test_from=<span class="kw">'2026-07-08'</span>, test_to=<span class="kw">'2026-07-09'</span>,
+  base_from=<span class="kw">'2026-07-06'</span>, base_to=<span class="kw">'2026-07-07'</span>, metric=<span class="kw">'fill_rate'</span>
+);
+
+<span class="cm">-- then which segment, and is it rate or mix</span>
+<span class="kw">SELECT</span> * <span class="kw">FROM</span> `inmobi-hari`.rca_seg(
+  test_from=<span class="kw">'2026-07-09'</span>, test_to=<span class="kw">'2026-07-10'</span>,
+  base_from=<span class="kw">'2026-07-06'</span>, base_to=<span class="kw">'2026-07-07'</span>,
+  metric=<span class="kw">'ecpm'</span>, dim=<span class="kw">'ad_format'</span>
+);</pre>
+    <p class="measure">Full write-up with every intermediate query, including the ones that were wrong on the first attempt, is in <code>notes/rca/unseen/DIAGNOSIS.md</code> and <code>notes/rca/unseen/README.md</code> of this repository.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    ClickHouse Click-a-thon 2026 · Automated Root-Cause Analyst · database <code>inmobi-hari</code>, ClickHouse Cloud
+  </div>
+</footer>
+
+<script>
+(function(){
+  var root=document.documentElement, KEY="rca-submission-theme";
+  var saved=null; try{saved=localStorage.getItem(KEY);}catch(e){}
+  if(saved){root.setAttribute("data-theme",saved);}
+  var b=document.createElement("button");
+  b.id="themer"; b.type="button";
+  b.setAttribute("aria-label","Toggle light or dark theme");
+  function current(){
+    var a=root.getAttribute("data-theme");
+    if(a) return a;
+    return window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";
+  }
+  function paint(){ b.innerHTML='<span class="dot"></span>'+(current()==="dark"?"Light":"Dark"); }
+  b.addEventListener("click",function(){
+    var next=current()==="dark"?"light":"dark";
+    root.setAttribute("data-theme",next);
+    try{localStorage.setItem(KEY,next);}catch(e){}
+    paint();
+  });
+  paint();
+  document.body.appendChild(b);
+})();
+</script>
