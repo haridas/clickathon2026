@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>InMobi Revenue RCA — Deck</title>
+<style>
+  @page { size: 13.333in 7.5in; margin: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 13.333in; }
+  body {
+    font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+    color: #1D1712;
+    background: #fff;
+  }
+  .slide {
+    width: 13.333in; height: 7.5in; position: relative; overflow: hidden;
+    page-break-after: always; break-after: page;
+    padding: 0.7in 0.85in;
+    display: flex; flex-direction: column;
+  }
+  .slide:last-child { page-break-after: auto; }
+  .dark { background: #17130F; color: #F3EFE7; }
+  .light { background: #FFFFFF; color: #1D1712; }
+
+  .eyebrow {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 12.5px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: #E0A030; font-weight: 700; margin-bottom: 14px;
+  }
+  .light .eyebrow { color: #A8690F; }
+
+  h1 {
+    font-family: Georgia, "Times New Roman", serif; font-weight: 700;
+    font-size: 46px; line-height: 1.12; letter-spacing: -0.01em;
+    max-width: 10.5in;
+  }
+  .dark h1 { color: #FBF6EC; }
+  .light h1 { color: #17130F; }
+
+  h2 {
+    font-family: Georgia, serif; font-weight: 700; font-size: 34px;
+    line-height: 1.15; letter-spacing: -0.005em; max-width: 10.8in;
+  }
+  .dark h2 { color: #FBF6EC; }
+  .light h2 { color: #17130F; }
+
+  .dek { font-size: 17px; line-height: 1.55; max-width: 8.6in; margin-top: 14px; }
+  .dark .dek { color: #CFC3AC; }
+  .light .dek { color: #4B4436; }
+
+  .muted-dark { color: #B5AA95; }
+  .muted-light { color: #6B6355; }
+
+  /* -------- mono label -------- */
+  .mono-label {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600;
+  }
+
+  /* -------- footer -------- */
+  .foot {
+    position: absolute; left: 0.85in; right: 0.85in; bottom: 0.45in;
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: ui-monospace, monospace; font-size: 10.5px; letter-spacing: 0.03em;
+  }
+  .dark .foot { color: #7A7061; }
+  .light .foot { color: #A39C8B; }
+  .foot .pg { font-weight: 700; }
+
+  /* -------- icon circle -------- */
+  .icon-circle {
+    width: 46px; height: 46px; border-radius: 50%; flex: none;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .icon-circle::before {
+    content: ""; width: 14px; height: 14px; border-radius: 50%; background: currentColor;
+  }
+  .icon-amber { background: rgba(224,160,48,0.16); color: #E0A030; }
+  .icon-teal  { background: rgba(28,114,147,0.15); color: #1C7293; }
+  .light .icon-amber { background: rgba(168,105,15,0.12); color: #A8690F; }
+  .light .icon-teal  { background: rgba(28,114,147,0.12); color: #1C7293; }
+
+  /* ================= SLIDE 1 : TITLE ================= */
+  #s1 { justify-content: flex-start; align-items: flex-start; padding-top: 1.7in; }
+  #s1 h1 { font-size: 54px; max-width: 10.2in; margin-top: 4px; }
+  #s1 .dek { font-size: 19px; max-width: 8.8in; }
+  #s1 .statrow {
+    position: absolute; left: 0.85in; right: 0.85in; bottom: 0.9in;
+    display: grid; grid-template-columns: repeat(4,1fr); gap: 1px;
+    background: #2A241C; border: 1px solid #2A241C; border-radius: 3px; overflow: hidden;
+  }
+  #s1 .stat { background: #1D1913; padding: 16px 20px; }
+  #s1 .stat .n { font-family: ui-monospace, monospace; font-size: 25px; font-weight: 700; color: #F3EFE7; }
+  #s1 .stat .n.a { color: #E0A030; }
+  #s1 .stat .l { font-size: 11px; color: #A79C89; margin-top: 5px; }
+
+  /* ================= SLIDE 2 : PROBLEM ================= */
+  #s2 .row { display: flex; gap: 0.7in; margin-top: 0.55in; align-items: center; }
+  #s2 .col { flex: 1; display: flex; flex-direction: column; gap: 30px; }
+  .pain {
+    display: flex; gap: 16px; align-items: flex-start;
+  }
+  .pain .num {
+    font-family: Georgia, serif; font-size: 15px; font-weight: 700; color: #A8690F;
+    width: 30px; flex: none; padding-top: 2px;
+  }
+  .pain .t { font-size: 15.5px; line-height: 1.55; color: #362F23; }
+  .pain .t b { color: #17130F; }
+  #s2 .side {
+    width: 3.6in; background: #17130F; border-radius: 6px; padding: 34px 30px;
+    display: flex; flex-direction: column; justify-content: center; gap: 10px;
+  }
+  #s2 .side .big { font-family: ui-monospace, monospace; font-size: 46px; font-weight: 700; color: #E0A030; }
+  #s2 .side .cap { font-size: 13.5px; color: #CFC3AC; line-height: 1.5; }
+
+  /* ================= SLIDE 3 : BUSINESS VALUE ================= */
+  #s3 .cards { display: flex; gap: 0.4in; margin-top: 0.55in; align-items: stretch; }
+  #s3 .card {
+    flex: 1; background: #1D1913; border-radius: 6px; padding: 30px 26px;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  #s3 .card .n { font-family: Georgia, serif; font-size: 34px; font-weight: 700; color: #E0A030; line-height: 1.15; }
+  #s3 .card .t { font-size: 15px; font-weight: 700; color: #F3EFE7; margin-top: 4px; }
+  #s3 .card .d { font-size: 13px; line-height: 1.55; color: #B5AA95; }
+  #s3 .closing { margin-top: 0.5in; font-size: 15px; color: #CFC3AC; max-width: 9.5in; font-style: italic; }
+
+  /* ================= SLIDE 4 : COST ================= */
+  #s4 .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.35in; margin-top: 0.45in; flex: 1; }
+  #s4 .cell {
+    border: 1px solid #E7E1D1; border-radius: 6px; padding: 24px 26px;
+    display: flex; gap: 16px; align-items: flex-start;
+  }
+  #s4 .cell .body .n { font-family: ui-monospace, monospace; font-size: 25px; font-weight: 700; color: #17130F; }
+  #s4 .cell .body .t { font-size: 13.5px; font-weight: 700; color: #17130F; margin-top: 4px; }
+  #s4 .cell .body .d { font-size: 12.5px; line-height: 1.5; color: #6B6355; margin-top: 5px; }
+
+  /* ================= SLIDE 5 : CLICKHOUSE FEATURES ================= */
+  #s5 .rows { display: flex; flex-direction: column; gap: 20px; margin-top: 0.42in; flex: 1; justify-content: center; }
+  .feat-row { display: flex; gap: 20px; align-items: flex-start; }
+  .feat-row .body .t { font-size: 16px; font-weight: 700; color: #F3EFE7; }
+  .feat-row .body .d { font-size: 13px; line-height: 1.5; color: #B5AA95; margin-top: 4px; max-width: 8.8in; }
+
+  /* ================= SLIDE 6 : LIBRECHAT ================= */
+  #s6 .row { display: flex; gap: 0.6in; margin-top: 0.42in; flex: 1; }
+  #s6 .left { flex: 1.05; display: flex; flex-direction: column; gap: 14px; }
+  #s6 .left .t { font-size: 15px; line-height: 1.6; color: #362F23; }
+  #s6 .left .t b { color: #17130F; }
+  #s6 .metarow { display: flex; gap: 10px; margin-top: 6px; }
+  #s6 .metachip {
+    font-family: ui-monospace, monospace; font-size: 11px; color: #A8690F;
+    background: rgba(168,105,15,0.1); border-radius: 3px; padding: 5px 10px; font-weight: 600;
+  }
+  #s6 .chat { width: 4.6in; background: #17130F; border-radius: 10px; padding: 22px; display: flex; flex-direction: column; gap: 12px; }
+  #s6 .bubble { border-radius: 10px; padding: 12px 15px; font-size: 12.5px; line-height: 1.5; }
+  #s6 .bubble.user { background: #2A241C; color: #F3EFE7; align-self: flex-end; max-width: 88%; }
+  #s6 .bubble.agent { background: #E0A030; color: #17130F; font-weight: 500; }
+  #s6 .bubble .who { font-family: ui-monospace, monospace; font-size: 9.5px; text-transform: uppercase; letter-spacing: .06em; opacity: .65; margin-bottom: 4px; font-weight: 700; }
+
+  /* ================= SLIDE 7 : FINDINGS ================= */
+  #s7 table { width: 100%; border-collapse: collapse; margin-top: 0.4in; font-size: 12.5px; }
+  #s7 th {
+    font-family: ui-monospace, monospace; font-size: 9.5px; letter-spacing: .05em; text-transform: uppercase;
+    color: #6B6355; text-align: left; padding: 8px 10px; border-bottom: 1px solid #17130F;
+  }
+  #s7 td { padding: 10px 10px; border-bottom: 1px solid #E7E1D1; color: #362F23; }
+  #s7 td.hl { color: #17130F; font-weight: 700; }
+  #s7 .chip { font-family: ui-monospace, monospace; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 3px; }
+  #s7 .chip.p1 { color: #C53434; background: rgba(197,52,52,0.12); }
+  #s7 .chip.p2 { color: #A5720A; background: rgba(165,114,10,0.14); }
+  #s7 .footline {
+    margin-top: 0.32in; display: flex; gap: 0.5in; align-items: center;
+  }
+  #s7 .footline .badge { font-family: ui-monospace, monospace; font-size: 13px; font-weight: 700; color: #0C8F34; background: rgba(12,143,52,0.1); padding: 8px 14px; border-radius: 4px; }
+  #s7 .footline .note { font-size: 13px; color: #6B6355; }
+
+  /* ================= SLIDE 8 : SUMMARY ================= */
+  #s8 { justify-content: flex-start; padding-top: 1.5in; }
+  #s8 .statrow2 { display: grid; grid-template-columns: repeat(5,1fr); gap: 1px; background: #2A241C; border: 1px solid #2A241C; border-radius: 3px; overflow: hidden; margin-top: 0.5in; }
+  #s8 .stat2 { background: #1D1913; padding: 20px 14px; text-align: left; }
+  #s8 .stat2 .n { font-family: ui-monospace, monospace; font-size: 22px; font-weight: 700; color: #E0A030; }
+  #s8 .stat2 .l { font-size: 10.5px; color: #A79C89; margin-top: 6px; line-height: 1.4; }
+  #s8 .close-line { margin-top: 0.55in; font-size: 18px; color: #F3EFE7; max-width: 9.5in; font-family: Georgia, serif; font-style: italic; line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<!-- ============================================================ SLIDE 1 -->
+<section class="slide dark" id="s1">
+  <div class="eyebrow">ClickHouse Click-a-thon 2026 &middot; Automated Root-Cause Analyst</div>
+  <h1>Revenue RCA that alerts<br>while the data is still landing.</h1>
+  <p class="dek">One ClickHouse pipeline handles ingestion, decomposition, and insert-time alerting for InMobi's ad revenue — then a LibreChat agent lets anyone ask it questions in plain English. This deck covers the business case, the cost profile, and what it found.</p>
+  <div class="statrow">
+    <div class="stat"><div class="n a">7</div><div class="l">confirmed incidents</div></div>
+    <div class="stat"><div class="n">$310.31</div><div class="l">revenue impact caught</div></div>
+    <div class="stat"><div class="n">21ms</div><div class="l">server-side drill-down</div></div>
+    <div class="stat"><div class="n">0</div><div class="l">false positives, 24 clean days</div></div>
+  </div>
+</section>
+
+<!-- ============================================================ SLIDE 2 -->
+<section class="slide light" id="s2">
+  <div class="eyebrow">01 &middot; The problem</div>
+  <h2>Ad revenue anomalies are high-cardinality, high-velocity, and easy to miss</h2>
+  <div class="row">
+    <div class="col">
+      <div class="pain"><div class="num">01</div><div class="t"><b>9 independent dimensions, millions of events a day.</b> A fault scoped to one OS on four countries doesn't move any dashboard total enough to notice.</div></div>
+      <div class="pain"><div class="num">02</div><div class="t"><b>Manual and batch RCA runs hours to days behind.</b> By the time a human spots the dip, the revenue is already gone.</div></div>
+      <div class="pain"><div class="num">03</div><div class="t"><b>Dimension tables get regenerated between data drops.</b> The same device ID can carry a different country or category next week — a naive detector silently misattributes segments and raises false incidents.</div></div>
+    </div>
+    <div class="side">
+      <div class="big">40 days</div>
+      <div class="cap">of ad_events scored end to end — 10.5M events, 9 dimensions, 4 revenue factors, one identity to decompose them by.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ SLIDE 3 -->
+<section class="slide dark" id="s3">
+  <div class="eyebrow">02 &middot; Business value</div>
+  <h2>What the pipeline is worth</h2>
+  <div class="cards">
+    <div class="card">
+      <div class="n">$310.31</div>
+      <div class="t">Revenue impact caught</div>
+      <div class="d">Across 7 real incidents in a single 40-day pass — every dollar quantified with a reproducible query, not an estimate.</div>
+    </div>
+    <div class="card">
+      <div class="n">Insert-time</div>
+      <div class="t">Detection, not discovery</div>
+      <div class="d">Alerts score inside the same materialized view that ingests the event. No nightly batch window, no cron job standing between a fault and its alert.</div>
+    </div>
+    <div class="card">
+      <div class="n">Plain English</div>
+      <div class="t">LibreChat as the front door</div>
+      <div class="d">A conversational agent sits on the same tables — "why did fill rate drop Tuesday" needs no SQL and no dashboard to read.</div>
+    </div>
+  </div>
+  <p class="closing">Every incident on this list was previously invisible until someone noticed a dashboard dip — usually a day or more after the revenue was already lost.</p>
+</section>
+
+<!-- ============================================================ SLIDE 4 -->
+<section class="slide light" id="s4">
+  <div class="eyebrow">03 &middot; Cost &amp; efficiency</div>
+  <h2>The ClickHouse-native design pays for itself in infrastructure, not just detection</h2>
+  <div class="grid">
+    <div class="cell">
+      <div class="icon-circle icon-amber"></div>
+      <div class="body">
+        <div class="n">~2%</div>
+        <div class="t">Storage overhead for the whole drill-down layer</div>
+        <div class="d">2.90 MiB of rollups against a 144.19 MiB raw fact table — every dimension, every hour, queryable without touching the source rows.</div>
+      </div>
+    </div>
+    <div class="cell">
+      <div class="icon-circle icon-teal"></div>
+      <div class="body">
+        <div class="n">79&times;</div>
+        <div class="t">Fewer rows scanned per drill-down</div>
+        <div class="d">A 9-dimension, 4-day scan reads 15,360 rollup rows instead of 1,209,372 raw events for the same window.</div>
+      </div>
+    </div>
+    <div class="cell">
+      <div class="icon-circle icon-amber"></div>
+      <div class="body">
+        <div class="n">21ms</div>
+        <div class="t">Server-side time for a full dimension scan</div>
+        <div class="d">Interactive, not batch — the same query a LibreChat agent calls mid-conversation.</div>
+      </div>
+    </div>
+    <div class="cell">
+      <div class="icon-circle icon-teal"></div>
+      <div class="body">
+        <div class="n">1 engine</div>
+        <div class="t">No separate streaming stack</div>
+        <div class="d">Dictionaries, materialized views, and parameterized views do ingestion, decomposition, and alerting inside ClickHouse — no Kafka, Flink, or Airflow layer to run or pay for.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ SLIDE 5 -->
+<section class="slide dark" id="s5">
+  <div class="eyebrow">04 &middot; ClickHouse, used end to end</div>
+  <h2>One engine, four jobs</h2>
+  <div class="rows">
+    <div class="feat-row">
+      <div class="icon-circle icon-amber"></div>
+      <div class="body"><div class="t">Dictionaries &mdash; COMPLEX_KEY_HASHED</div><div class="d">O(1) segment lookups inside every materialized view. No per-query JOIN plan against a dimension table sized in the thousands of rows.</div></div>
+    </div>
+    <div class="feat-row">
+      <div class="icon-circle icon-teal"></div>
+      <div class="body"><div class="t">Materialized views that fire on INSERT</div><div class="d">An alert can exist in the same transaction as the event that caused it — the alerting layer has no separate schedule to fall behind.</div></div>
+    </div>
+    <div class="feat-row">
+      <div class="icon-circle icon-amber"></div>
+      <div class="body"><div class="t">SummingMergeTree + ARRAY JOIN &mdash; marginal, not cubed</div><div class="d">One row per (dimension, value, hour), built from a literal array of 9 dimension tuples: 61,440 rows, versus the 7.9M-row full cube the naive approach produces for the same facts.</div></div>
+    </div>
+    <div class="feat-row">
+      <div class="icon-circle icon-teal"></div>
+      <div class="body"><div class="t">Parameterized views &mdash; rca_scan / rca_seg / rca_volume</div><div class="d">The drill-down protocol as a callable query with named arguments, not a one-off script re-written for every incident.</div></div>
+    </div>
+    <div class="feat-row">
+      <div class="icon-circle icon-amber"></div>
+      <div class="body"><div class="t">Cross-database, read-only baselines</div><div class="d">A fresh dataset is scored against a trained baseline in another database without ever writing to the source — the June data stays untouched.</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ SLIDE 6 -->
+<section class="slide light" id="s6">
+  <div class="eyebrow">05 &middot; LibreChat integration</div>
+  <h2>A conversational analyst on top of the same tables</h2>
+  <div class="row">
+    <div class="left">
+      <p class="t">The agent's entire context is one file: a system prompt that teaches it the table catalog, the four-step drill-down protocol, and the traps that produce a confident wrong answer if skipped.</p>
+      <p class="t">Every SQL example inside it was <b>executed against the live cluster</b> before it shipped — the agent is never reasoning from a description of the schema, it's reasoning from queries that were proven to run.</p>
+      <div class="metarow">
+        <div class="metachip">313 lines</div>
+        <div class="metachip">~3,456 tokens</div>
+        <div class="metachip">librechat-rca-agent.md</div>
+      </div>
+    </div>
+    <div class="chat">
+      <div class="bubble user"><div class="who">Analyst</div>Why did fill rate drop on July 8th?</div>
+      <div class="bubble agent"><div class="who">RCA Agent</div>os_version = iOS&nbsp;17.5 collapsed from 79.2% to 47.8% fill (z&nbsp;=&nbsp;&minus;117), uniform across all 16 countries and all 3 iPhone models carrying that OS &mdash; an OS-level fault, not a geography or device issue.</div>
+      <div class="bubble user"><div class="who">Analyst</div>Is that the real cause, or bleed-through?</div>
+      <div class="bubble agent"><div class="who">RCA Agent</div>Real cause. device_model=iPhone&nbsp;14 and country=ID also flag, but at half the |z| &mdash; they're just the buckets with the most iOS&nbsp;17.5 traffic.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ SLIDE 7 -->
+<section class="slide light" id="s7">
+  <div class="eyebrow">06 &middot; Detailed analysis</div>
+  <h2>7 incidents, 40 days, zero false positives</h2>
+  <table>
+    <thead><tr><th>Days</th><th>Metric</th><th>Root cause</th><th>Sev</th><th style="text-align:right">Impact</th></tr></thead>
+    <tbody>
+      <tr><td>Jun 16&ndash;18</td><td>eCPM</td><td>region=EU &times; interstitial</td><td><span class="chip p2">P2</span></td><td class="hl" style="text-align:right">&minus;$20.00</td></tr>
+      <tr><td>Jun 19&ndash;22</td><td>eCPM</td><td>category=finance</td><td><span class="chip p1">P1</span></td><td class="hl" style="text-align:right">&minus;$41.80</td></tr>
+      <tr><td>Jun 21</td><td>requests</td><td>ingestion gap, whole pipeline</td><td><span class="chip p1">P1</span></td><td class="hl" style="text-align:right">&minus;43.9%</td></tr>
+      <tr><td>Jun 23&ndash;25</td><td>fill_rate</td><td>os_version=Android 15</td><td><span class="chip p1">P1</span></td><td class="hl" style="text-align:right">&minus;$68.11</td></tr>
+      <tr><td>Jun 28&ndash;30</td><td>fill_rate</td><td>iOS 18.1 &times; APAC</td><td><span class="chip p1">P1</span></td><td class="hl" style="text-align:right">&minus;$20.66</td></tr>
+      <tr><td>Jul 8&ndash;9</td><td>fill_rate</td><td>os_version=iOS 17.5</td><td><span class="chip p1">P1</span></td><td class="hl" style="text-align:right">&minus;$66.00</td></tr>
+      <tr><td>Jul 9&ndash;10</td><td>eCPM</td><td>ad_format=video</td><td><span class="chip p1">P1</span></td><td class="hl" style="text-align:right">&minus;$93.74</td></tr>
+    </tbody>
+  </table>
+  <div class="footline">
+    <div class="badge">24 / 40 days clean</div>
+    <div class="note">277 raw segment/day alerts collapse to these 18 incident rows &mdash; the rest is arithmetic bleed-through from the same root cause, not separate faults.</div>
+  </div>
+</section>
+
+<!-- ============================================================ SLIDE 8 -->
+<section class="slide dark" id="s8">
+  <div class="eyebrow">Summary</div>
+  <h2>Detection that pays for itself</h2>
+  <div class="statrow2">
+    <div class="stat2"><div class="n">7</div><div class="l">incidents found, 2 sealed + 5 recovered</div></div>
+    <div class="stat2"><div class="n">$310</div><div class="l">revenue impact quantified</div></div>
+    <div class="stat2"><div class="n">21ms</div><div class="l">drill-down query time</div></div>
+    <div class="stat2"><div class="n">~2%</div><div class="l">storage overhead vs raw events</div></div>
+    <div class="stat2"><div class="n">0</div><div class="l">false positives, 24 clean days</div></div>
+  </div>
+  <p class="close-line">Built entirely on ClickHouse — ingestion, decomposition, insert-time alerting, and a natural-language interface, in one system, with every number reproducible from the SQL in this repository.</p>
+  <div class="foot" style="position:static; margin-top:auto; padding-top:0.5in;">
+    <span>databases: inmobi-hari &middot; inmobi_unseen_1</span>
+    <span>notes/rca/unseen/</span>
+  </div>
+</section>
+
+</body>
+</html>
